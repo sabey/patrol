@@ -21,8 +21,8 @@ var (
 	ERR_APP_WORKINGDIRECTORY_UNCLEAN = fmt.Errorf("App WorkingDirectory was unclean")
 	ERR_APP_APPPATH_EMPTY            = fmt.Errorf("App AppPath was empty")
 	ERR_APP_APPPATH_UNCLEAN          = fmt.Errorf("App AppPath was unclean")
-	ERR_APP_LOG_DIRECTORY_EMPTY      = fmt.Errorf("App Log Directory was empty")
-	ERR_APP_LOG_DIRECTORY_UNCLEAN    = fmt.Errorf("App Log Directory was unclean")
+	ERR_APP_LOGDIRECTORY_EMPTY       = fmt.Errorf("App Log Directory was empty")
+	ERR_APP_LOGDIRECTORY_UNCLEAN     = fmt.Errorf("App Log Directory was unclean")
 	ERR_APP_PIDPATH_EMPTY            = fmt.Errorf("App PIDPATH was empty")
 	ERR_APP_PIDPATH_UNCLEAN          = fmt.Errorf("App PIDPath was unclean")
 )
@@ -35,14 +35,14 @@ func CreatePatrol(
 ) {
 	file, err := os.Open(path)
 	if err != nil {
-		//couldn't open file
+		// couldn't open file
 		return nil, err
 	}
 	defer file.Close()
 	decoder := json.NewDecoder(file)
 	config := &Patrol{}
 	if err := decoder.Decode(config); err != nil {
-		//"couldn't decode file"
+		// couldn't decode file as json
 		return nil, err
 	}
 	if err := config.validate(); err != nil {
@@ -57,7 +57,7 @@ type Patrol struct {
 
 func (self *Patrol) validate() error {
 	if len(self.Apps) == 0 {
-		//no apps found
+		// no apps found
 		return ERR_APPS_EMPTY
 	}
 	for name, app := range self.Apps {
@@ -107,10 +107,10 @@ func (self *PatrolApp) validate() error {
 		return ERR_APP_APPPATH_UNCLEAN
 	}
 	if self.LogDirectory == "" {
-		return ERR_APP_LOG_DIRECTORY_EMPTY
+		return ERR_APP_LOGDIRECTORY_EMPTY
 	}
 	if !IsPathClean(self.LogDirectory) {
-		return ERR_APP_LOG_DIRECTORY_UNCLEAN
+		return ERR_APP_LOGDIRECTORY_UNCLEAN
 	}
 	if self.PIDPath == "" {
 		return ERR_APP_PIDPATH_EMPTY

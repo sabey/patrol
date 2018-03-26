@@ -52,7 +52,7 @@ func TestPatrol(t *testing.T) {
 	unittest.Equals(t, patrol.validate(), ERR_APP_APPPATH_EMPTY)
 	app.AppPath = "file"
 
-	unittest.Equals(t, patrol.validate(), ERR_APP_LOG_DIRECTORY_EMPTY)
+	unittest.Equals(t, patrol.validate(), ERR_APP_LOGDIRECTORY_EMPTY)
 	app.LogDirectory = "log-directory"
 
 	unittest.Equals(t, patrol.validate(), ERR_APP_PIDPATH_EMPTY)
@@ -82,10 +82,10 @@ func TestPatrolApp(t *testing.T) {
 	unittest.Equals(t, app.validate(), ERR_APP_APPPATH_UNCLEAN)
 
 	app.AppPath = "file"
-	unittest.Equals(t, app.validate(), ERR_APP_LOG_DIRECTORY_EMPTY)
+	unittest.Equals(t, app.validate(), ERR_APP_LOGDIRECTORY_EMPTY)
 
 	app.LogDirectory = "log-directory/."
-	unittest.Equals(t, app.validate(), ERR_APP_LOG_DIRECTORY_UNCLEAN)
+	unittest.Equals(t, app.validate(), ERR_APP_LOGDIRECTORY_UNCLEAN)
 
 	app.LogDirectory = "log-directory"
 	unittest.Equals(t, app.validate(), ERR_APP_PIDPATH_EMPTY)
@@ -94,6 +94,5 @@ func TestPatrolApp(t *testing.T) {
 	unittest.Equals(t, app.validate(), ERR_APP_PIDPATH_UNCLEAN)
 
 	app.PIDPath = "pid"
-
 	unittest.IsNil(t, app.validate())
 }
