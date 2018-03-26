@@ -9,7 +9,9 @@ import (
 func TestPatrolApp(t *testing.T) {
 	log.Println("TestPatrolApp")
 
-	app := &PatrolApp{}
+	app := &PatrolApp{
+		KeepAlive: APP_KEEPALIVE_PID_PATROL,
+	}
 	unittest.Equals(t, app.validate(), ERR_APP_NAME_EMPTY)
 
 	app.Name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

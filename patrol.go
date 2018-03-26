@@ -37,6 +37,8 @@ func CreatePatrol(
 }
 
 type Patrol struct {
+	// Apps must contain a unique non empty alphanumeric (0-9A-Za-z) key
+	// this key is used for the HTTP/UDP endpoints and is used to represent Apps in our log files, PatrolApp.Name is not used in logs
 	Apps map[string]*PatrolApp `json:"apps,omitempty"`
 }
 

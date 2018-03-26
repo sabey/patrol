@@ -18,7 +18,9 @@ func TestPatrol(t *testing.T) {
 	patrol.Apps = make(map[string]*PatrolApp)
 	unittest.Equals(t, patrol.validate(), ERR_APPS_EMPTY)
 
-	patrol.Apps[""] = &PatrolApp{}
+	patrol.Apps[""] = &PatrolApp{
+		KeepAlive: APP_KEEPALIVE_PID_PATROL,
+	}
 	// check that key exists
 	_, exists := patrol.Apps[""]
 	unittest.Equals(t, exists, true)
@@ -30,7 +32,9 @@ func TestPatrol(t *testing.T) {
 	unittest.Equals(t, exists, false)
 
 	// check for invalid key
-	patrol.Apps["123456789012345679012345678912345"] = &PatrolApp{}
+	patrol.Apps["123456789012345679012345678912345"] = &PatrolApp{
+		KeepAlive: APP_KEEPALIVE_PID_PATROL,
+	}
 	unittest.Equals(t, patrol.validate(), ERR_APPS_KEY_INVALID)
 
 	// delete invalid key
@@ -38,10 +42,15 @@ func TestPatrol(t *testing.T) {
 	_, exists = patrol.Apps["123456789012345679012345678912345"]
 	unittest.Equals(t, exists, false)
 
+	// valid object
 	app := &PatrolApp{
 		// empty object
 	}
 	patrol.Apps["http"] = app
+
+	// no keep alive
+	unittest.Equals(t, patrol.validate(), ERR_APP_KEEPALIVE_INVALID)
+	app.KeepAlive = APP_KEEPALIVE_PID_PATROL
 
 	unittest.Equals(t, patrol.validate(), ERR_APP_NAME_EMPTY)
 	app.Name = "name"

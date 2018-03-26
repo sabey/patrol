@@ -1,8 +1,9 @@
 {
   "apps": {
     "http": {
+      "keepalive": 1,
       "name": "web server",
-      "working-directory": "/home/pablo/http",
+      "working-directory": "/home/patrol/http",
       "app-path": "httpd",
       "log-directory": "logs",
       "pid-path": "app.pid"
