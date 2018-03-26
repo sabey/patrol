@@ -27,6 +27,15 @@ func TestPatrol(t *testing.T) {
 	_, exists = patrol.Apps[""]
 	unittest.Equals(t, exists, false)
 
+	// check for invalid key
+	patrol.Apps["123456789012345679012345678912345"] = &PatrolApp{}
+	unittest.Equals(t, patrol.validate(), ERR_APP_KEY_INVALID)
+
+	// delete invalid key
+	delete(patrol.Apps, "123456789012345679012345678912345")
+	_, exists = patrol.Apps["123456789012345679012345678912345"]
+	unittest.Equals(t, exists, false)
+
 	app := &PatrolApp{
 		// empty object
 	}

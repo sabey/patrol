@@ -9,6 +9,7 @@ import (
 var (
 	ERR_APPS_EMPTY              = fmt.Errorf("Apps were empty")
 	ERR_APP_KEY_EMPTY           = fmt.Errorf("App Key was empty")
+	ERR_APP_KEY_INVALID         = fmt.Errorf("App Key was invalid")
 	ERR_APP_NAME_EMPTY          = fmt.Errorf("App Name was empty")
 	ERR_APP_DIRECTORY_EMPTY     = fmt.Errorf("App Directory was empty")
 	ERR_APP_FILE_EMPTY          = fmt.Errorf("App File was empty")
@@ -52,6 +53,9 @@ func (self *Patrol) validate() error {
 	for name, app := range self.Apps {
 		if name == "" {
 			return ERR_APP_KEY_EMPTY
+		}
+		if !IsAppKey(name) {
+			return ERR_APP_KEY_INVALID
 		}
 		if err := app.validate(); err != nil {
 			return err
