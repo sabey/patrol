@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 )
 
 const (
@@ -77,7 +76,8 @@ func (self *Patrol) validate() error {
 
 type PatrolApp struct {
 	Name string `json:"name,omitempty"`
-	// if Working Directory is empty, the app is executed from the current working directory
+	// Working Directory is currently required to be non empty
+	// we don't want Apps executing relative to the current directory, we want them to know what their reference is
 	WorkingDirectory string `json:"working-directory,omitempty"`
 	// App Path to the app executable
 	AppPath string `json:"app-path,omitempty"`
@@ -97,25 +97,25 @@ func (self *PatrolApp) validate() error {
 	if self.WorkingDirectory == "" {
 		return ERR_APP_WORKINGDIRECTORY_EMPTY
 	}
-	if self.WorkingDirectory != filepath.Clean(self.WorkingDirectory) {
+	if !IsPathClean(self.WorkingDirectory) {
 		return ERR_APP_WORKINGDIRECTORY_UNCLEAN
 	}
 	if self.AppPath == "" {
 		return ERR_APP_APPPATH_EMPTY
 	}
-	if self.AppPath != filepath.Clean(self.AppPath) {
+	if !IsPathClean(self.AppPath) {
 		return ERR_APP_APPPATH_UNCLEAN
 	}
 	if self.LogDirectory == "" {
 		return ERR_APP_LOG_DIRECTORY_EMPTY
 	}
-	if self.LogDirectory != filepath.Clean(self.LogDirectory) {
+	if !IsPathClean(self.LogDirectory) {
 		return ERR_APP_LOG_DIRECTORY_UNCLEAN
 	}
 	if self.PIDPath == "" {
 		return ERR_APP_PIDPATH_EMPTY
 	}
-	if self.PIDPath != filepath.Clean(self.PIDPath) {
+	if !IsPathClean(self.PIDPath) {
 		return ERR_APP_PIDPATH_UNCLEAN
 	}
 	return nil
