@@ -7,14 +7,14 @@ import (
 )
 
 var (
-	ERR_APPS_EMPTY              = fmt.Errorf("Apps were empty")
-	ERR_APP_KEY_EMPTY           = fmt.Errorf("App Key was empty")
-	ERR_APP_KEY_INVALID         = fmt.Errorf("App Key was invalid")
-	ERR_APP_NAME_EMPTY          = fmt.Errorf("App Name was empty")
-	ERR_APP_DIRECTORY_EMPTY     = fmt.Errorf("App Directory was empty")
-	ERR_APP_FILE_EMPTY          = fmt.Errorf("App File was empty")
-	ERR_APP_LOG_DIRECTORY_EMPTY = fmt.Errorf("App Log Directory was empty")
-	ERR_APP_PID_EMPTY           = fmt.Errorf("App PID was empty")
+	ERR_APPS_EMPTY                 = fmt.Errorf("Apps were empty")
+	ERR_APP_KEY_EMPTY              = fmt.Errorf("App Key was empty")
+	ERR_APP_KEY_INVALID            = fmt.Errorf("App Key was invalid")
+	ERR_APP_NAME_EMPTY             = fmt.Errorf("App Name was empty")
+	ERR_APP_WORKINGDIRECTORY_EMPTY = fmt.Errorf("App WorkingDirectory was empty")
+	ERR_APP_APPPATH_EMPTY          = fmt.Errorf("App App was empty")
+	ERR_APP_LOG_DIRECTORY_EMPTY    = fmt.Errorf("App Log Directory was empty")
+	ERR_APP_PIDPATH_EMPTY          = fmt.Errorf("App PIDPATH was empty")
 )
 
 func CreatePatrol(
@@ -65,28 +65,32 @@ func (self *Patrol) validate() error {
 }
 
 type PatrolApp struct {
-	Name         string `json:"name,omitempty"`
-	Directory    string `json:"directory,omitempty"`
-	File         string `json:"file,omitempty"`
+	Name string `json:"name,omitempty"`
+	// if Working Directory is empty, the app is executed from the current working directory
+	WorkingDirectory string `json:"working-directory,omitempty"`
+	// App Path to the app executable
+	AppPath string `json:"app-path,omitempty"`
+	// Log Directory for stderr and stdout
 	LogDirectory string `json:"log-directory,omitempty"`
-	PID          string `json:"pid,omitempty"`
+	// path to pid file
+	PIDPath string `json:"pid-path,omitempty"`
 }
 
 func (self *PatrolApp) validate() error {
 	if self.Name == "" {
 		return ERR_APP_NAME_EMPTY
 	}
-	if self.Directory == "" {
-		return ERR_APP_DIRECTORY_EMPTY
+	if self.WorkingDirectory == "" {
+		return ERR_APP_WORKINGDIRECTORY_EMPTY
 	}
-	if self.File == "" {
-		return ERR_APP_FILE_EMPTY
+	if self.AppPath == "" {
+		return ERR_APP_APPPATH_EMPTY
 	}
 	if self.LogDirectory == "" {
 		return ERR_APP_LOG_DIRECTORY_EMPTY
 	}
-	if self.PID == "" {
-		return ERR_APP_PID_EMPTY
+	if self.PIDPath == "" {
+		return ERR_APP_PIDPATH_EMPTY
 	}
 	return nil
 }

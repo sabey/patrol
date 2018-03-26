@@ -44,17 +44,17 @@ func TestPatrol(t *testing.T) {
 	unittest.Equals(t, patrol.validate(), ERR_APP_NAME_EMPTY)
 	app.Name = "name"
 
-	unittest.Equals(t, patrol.validate(), ERR_APP_DIRECTORY_EMPTY)
-	app.Directory = "directory"
+	unittest.Equals(t, patrol.validate(), ERR_APP_WORKINGDIRECTORY_EMPTY)
+	app.WorkingDirectory = "directory"
 
-	unittest.Equals(t, patrol.validate(), ERR_APP_FILE_EMPTY)
-	app.File = "file"
+	unittest.Equals(t, patrol.validate(), ERR_APP_APPPATH_EMPTY)
+	app.AppPath = "file"
 
 	unittest.Equals(t, patrol.validate(), ERR_APP_LOG_DIRECTORY_EMPTY)
 	app.LogDirectory = "log-directory"
 
-	unittest.Equals(t, patrol.validate(), ERR_APP_PID_EMPTY)
-	app.PID = "pid"
+	unittest.Equals(t, patrol.validate(), ERR_APP_PIDPATH_EMPTY)
+	app.PIDPath = "pid"
 
 	unittest.IsNil(t, app.validate())
 }
@@ -65,17 +65,17 @@ func TestPatrolApp(t *testing.T) {
 	unittest.Equals(t, app.validate(), ERR_APP_NAME_EMPTY)
 	app.Name = "name"
 
-	unittest.Equals(t, app.validate(), ERR_APP_DIRECTORY_EMPTY)
-	app.Directory = "directory"
+	unittest.Equals(t, app.validate(), ERR_APP_WORKINGDIRECTORY_EMPTY)
+	app.WorkingDirectory = "directory"
 
-	unittest.Equals(t, app.validate(), ERR_APP_FILE_EMPTY)
-	app.File = "file"
+	unittest.Equals(t, app.validate(), ERR_APP_APPPATH_EMPTY)
+	app.AppPath = "file"
 
 	unittest.Equals(t, app.validate(), ERR_APP_LOG_DIRECTORY_EMPTY)
 	app.LogDirectory = "log-directory"
 
-	unittest.Equals(t, app.validate(), ERR_APP_PID_EMPTY)
-	app.PID = "pid"
+	unittest.Equals(t, app.validate(), ERR_APP_PIDPATH_EMPTY)
+	app.PIDPath = "pid"
 
 	unittest.IsNil(t, app.validate())
 }
