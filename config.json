@@ -1,0 +1,11 @@
+{
+  "apps": {
+    "http": {
+      "name": "web server",
+      "directory": "/home/pablo/http",
+      "file": "httpd",
+      "log-directory": "logs",
+      "pid": "app.pid"
+    }
+  }
+}
