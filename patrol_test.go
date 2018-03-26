@@ -22,7 +22,7 @@ func TestPatrol(t *testing.T) {
 	// check that key exists
 	_, exists := patrol.Apps[""]
 	unittest.Equals(t, exists, true)
-	unittest.Equals(t, patrol.validate(), ERR_APP_KEY_EMPTY)
+	unittest.Equals(t, patrol.validate(), ERR_APPS_KEY_EMPTY)
 
 	// delete empty key
 	delete(patrol.Apps, "")
@@ -31,7 +31,7 @@ func TestPatrol(t *testing.T) {
 
 	// check for invalid key
 	patrol.Apps["123456789012345679012345678912345"] = &PatrolApp{}
-	unittest.Equals(t, patrol.validate(), ERR_APP_KEY_INVALID)
+	unittest.Equals(t, patrol.validate(), ERR_APPS_KEY_INVALID)
 
 	// delete invalid key
 	delete(patrol.Apps, "123456789012345679012345678912345")
@@ -47,7 +47,7 @@ func TestPatrol(t *testing.T) {
 	app.Name = "name"
 
 	unittest.Equals(t, patrol.validate(), ERR_APP_WORKINGDIRECTORY_EMPTY)
-	app.WorkingDirectory = "directory"
+	app.WorkingDirectory = "/directory"
 
 	unittest.Equals(t, patrol.validate(), ERR_APP_APPPATH_EMPTY)
 	app.AppPath = "file"
@@ -58,41 +58,5 @@ func TestPatrol(t *testing.T) {
 	unittest.Equals(t, patrol.validate(), ERR_APP_PIDPATH_EMPTY)
 	app.PIDPath = "pid"
 
-	unittest.IsNil(t, app.validate())
-}
-func TestPatrolApp(t *testing.T) {
-	log.Println("TestPatrolApp")
-
-	app := &PatrolApp{}
-	unittest.Equals(t, app.validate(), ERR_APP_NAME_EMPTY)
-
-	app.Name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	unittest.Equals(t, app.validate(), ERR_APP_NAME_MAXLENGTH)
-
-	app.Name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	unittest.Equals(t, app.validate(), ERR_APP_WORKINGDIRECTORY_EMPTY)
-
-	app.WorkingDirectory = "directory/."
-	unittest.Equals(t, app.validate(), ERR_APP_WORKINGDIRECTORY_UNCLEAN)
-
-	app.WorkingDirectory = "directory"
-	unittest.Equals(t, app.validate(), ERR_APP_APPPATH_EMPTY)
-
-	app.AppPath = "file/.."
-	unittest.Equals(t, app.validate(), ERR_APP_APPPATH_UNCLEAN)
-
-	app.AppPath = "file"
-	unittest.Equals(t, app.validate(), ERR_APP_LOGDIRECTORY_EMPTY)
-
-	app.LogDirectory = "log-directory/."
-	unittest.Equals(t, app.validate(), ERR_APP_LOGDIRECTORY_UNCLEAN)
-
-	app.LogDirectory = "log-directory"
-	unittest.Equals(t, app.validate(), ERR_APP_PIDPATH_EMPTY)
-
-	app.PIDPath = "pid/.."
-	unittest.Equals(t, app.validate(), ERR_APP_PIDPATH_UNCLEAN)
-
-	app.PIDPath = "pid"
 	unittest.IsNil(t, app.validate())
 }
