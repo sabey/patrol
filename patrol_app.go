@@ -78,6 +78,12 @@ type PatrolApp struct {
 	PIDVerify bool `json:"pid-verify,omitempty"`
 }
 
+func (self *PatrolApp) IsValid() bool {
+	if self == nil {
+		return false
+	}
+	return true
+}
 func (self *PatrolApp) validate() error {
 	if self.KeepAlive < APP_KEEPALIVE_PID_PATROL ||
 		self.KeepAlive > APP_KEEPALIVE_UDP {

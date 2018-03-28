@@ -13,16 +13,53 @@ func TestPatrol(t *testing.T) {
 
 	patrol := &Patrol{}
 
-	unittest.Equals(t, patrol.validate(), ERR_APPS_EMPTY)
+	unittest.Equals(t, patrol.validate(), ERR_PATROL_EMPTY)
 	// Apps must be initialized, the creation of the patrol object will not do this for you
 	patrol.Apps = make(map[string]*PatrolApp)
-	unittest.Equals(t, patrol.validate(), ERR_APPS_EMPTY)
+	unittest.Equals(t, patrol.validate(), ERR_PATROL_EMPTY)
 
+	// add a service
+	patrol.Services = make(map[string]*PatrolService)
+	// empty Service
+	patrol.Services[""] = &PatrolService{}
+	// check that key exists
+	_, exists := patrol.Services[""]
+	unittest.Equals(t, exists, true)
+	unittest.Equals(t, patrol.validate(), ERR_SERVICES_KEY_EMPTY)
+
+	// delete empty key
+	delete(patrol.Services, "")
+	_, exists = patrol.Services[""]
+	unittest.Equals(t, exists, false)
+
+	// check for invalid key
+	patrol.Services["123456789012345679012345678912345"] = &PatrolService{
+		Management: SERVICE_MANAGEMENT_INITD,
+	}
+	unittest.Equals(t, patrol.validate(), ERR_SERVICES_KEY_INVALID)
+
+	// delete invalid key
+	delete(patrol.Services, "123456789012345679012345678912345")
+	_, exists = patrol.Services["123456789012345679012345678912345"]
+	unittest.Equals(t, exists, false)
+
+	service := &PatrolService{
+		// empty object
+	}
+	patrol.Services["ssh"] = service
+	// we're no longer going to get a patrol error, so we're good!
+	unittest.Equals(t, patrol.validate(), ERR_SERVICE_MANAGEMENT_INVALID)
+
+	// delete service so we can validate App
+	patrol.Services = make(map[string]*PatrolService)
+	unittest.Equals(t, patrol.validate(), ERR_PATROL_EMPTY)
+
+	// empty App
 	patrol.Apps[""] = &PatrolApp{
 		KeepAlive: APP_KEEPALIVE_PID_PATROL,
 	}
 	// check that key exists
-	_, exists := patrol.Apps[""]
+	_, exists = patrol.Apps[""]
 	unittest.Equals(t, exists, true)
 	unittest.Equals(t, patrol.validate(), ERR_APPS_KEY_EMPTY)
 

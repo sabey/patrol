@@ -10,18 +10,24 @@ import (
 func TestFuncs(t *testing.T) {
 	log.Println("TestFuncs")
 
-	fmt.Println("IsAppKey")
-	unittest.Equals(t, IsAppKey(""), false)
-	unittest.Equals(t, IsAppKey("12345678901234567901234567891234"), true)
-	unittest.Equals(t, IsAppKey("123456789012345679012345678912345"), false)
+	fmt.Println("IsAppServiceKey")
+	unittest.Equals(t, IsAppServiceKey(""), false)
+	unittest.Equals(t, IsAppServiceKey("."), false)
+	unittest.Equals(t, IsAppServiceKey(".."), false)
+	unittest.Equals(t, IsAppServiceKey("-"), true)
+	unittest.Equals(t, IsAppServiceKey("..."), true)
+	unittest.Equals(t, IsAppServiceKey("12345678901234567901234567891234"), true)
+	unittest.Equals(t, IsAppServiceKey("123456789012345679012345678912345"), false)
 
 	for i := 0; i <= 0x7F; i++ {
-		if i >= '0' && i <= '9' ||
+		// do not check for '.' here, it'll return false
+		if i == '-' ||
+			i >= '0' && i <= '9' ||
 			i >= 'A' && i <= 'Z' ||
 			i >= 'a' && i <= 'z' {
-			unittest.Equals(t, IsAppKey(string([]byte{byte(i)})), true)
+			unittest.Equals(t, IsAppServiceKey(string([]byte{byte(i)})), true)
 		} else {
-			unittest.Equals(t, IsAppKey(string([]byte{byte(i)})), false)
+			unittest.Equals(t, IsAppServiceKey(string([]byte{byte(i)})), false)
 		}
 	}
 
