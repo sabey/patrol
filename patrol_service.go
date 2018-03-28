@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"os/exec"
+	"time"
 )
 
 const (
@@ -69,4 +72,26 @@ func (self *PatrolService) validate() error {
 		exists[ec] = struct{}{}
 	}
 	return nil
+}
+func (self *PatrolService) StartService(service string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+	defer cancel()
+	var cmd *exec.Cmd
+	if self.Management == SERVICE_MANAGEMENT_SERVICE {
+		cmd = exec.CommandContext(ctx, "service", service, "start")
+	} else {
+		cmd = exec.CommandContext(ctx, fmt.Sprintf("/etc/init.d/%s", service), "start")
+	}
+	return cmd.Run()
+}
+func (self *PatrolService) IsServiceRunning(service string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+	var cmd *exec.Cmd
+	if self.Management == SERVICE_MANAGEMENT_SERVICE {
+		cmd = exec.CommandContext(ctx, "service", service, "status")
+	} else {
+		cmd = exec.CommandContext(ctx, fmt.Sprintf("/etc/init.d/%s", service), "status")
+	}
+	return cmd.Run()
 }

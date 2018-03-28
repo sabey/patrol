@@ -33,4 +33,17 @@ func main() {
 	//	]
 	bs, _ := json.MarshalIndent(config, "", "\t")
 	fmt.Printf("config %s\n", bs)
+
+	for service, ps := range config.Services {
+		if err := ps.IsServiceRunning(service); err != nil {
+			fmt.Printf("the service %s is not running: \"%s\"\n", service, err)
+			if err := ps.StartService(service); err != nil {
+				fmt.Printf("the service %s failed to start: \"%s\"\n", service, err)
+			} else {
+				fmt.Printf("the service %s started\n", service)
+			}
+		} else {
+			fmt.Printf("the service %s is running\n", service)
+		}
+	}
 }
