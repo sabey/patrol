@@ -8,5 +8,14 @@
       "log-directory": "logs",
       "pid-path": "app.pid"
     }
+  },
+  "services": {
+    "ssh": {
+      "management": 1,
+      "name": "ssh",
+      "ignore-exit-codes": [
+        127
+      ]
+    }
   }
 }
