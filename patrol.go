@@ -41,10 +41,10 @@ func CreatePatrol(
 }
 
 type Patrol struct {
-	// Apps must contain a unique non empty alphanumeric ( 0-9 A-Z a-z - ) key
+	// Apps must contain a unique non empty key: ( 0-9 A-Z a-z - . ) and must not be "." or ".."
 	// this key is used for the HTTP/UDP endpoints and is used to represent Apps in our log files, PatrolApp.Name is not used in logs
 	Apps map[string]*PatrolApp `json:"apps,omitempty"`
-	// Services must contain a unique non empty alphanumeric ( 0-9 A-Z a-z - ) key
+	// Services must contain a unique non empty key: ( 0-9 A-Z a-z - . ) and must not be "." or ".."
 	// this key is used for inplace of the "service * status" or "/etc/init.d/* status" field
 	Services map[string]*PatrolService `json:"services,omitempty"`
 }
