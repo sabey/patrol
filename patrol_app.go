@@ -1,7 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"strconv"
 )
 
 const (
@@ -130,4 +135,31 @@ func (self *PatrolApp) validate() error {
 		}
 	}
 	return nil
+}
+
+func (self *PatrolApp) startApp() error {
+	return nil
+}
+func (self *PatrolApp) isAppRunning() error {
+	// do the kill command with the pid from getPID
+	return nil
+}
+func (self *PatrolApp) getPID() (uint16, error) {
+	file, err := os.Open(self.WorkingDirectory + "/" + self.PIDPath)
+	if err != nil {
+		log.Printf("failed to open PID file: %s\n", err)
+		return 0, err
+	}
+	b, err := ioutil.ReadAll(file)
+	if err != nil {
+		log.Printf("failed to read PID file: %s\n", err)
+		return 0, err
+	}
+
+	pid, err := strconv.ParseUint(string(bytes.TrimSpace(b)), 10, 16)
+	if err != nil {
+		log.Printf("failed to convert parse PID file: %s\n", err)
+		return 0, err
+	}
+	return uint16(pid), nil
 }
