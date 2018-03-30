@@ -35,6 +35,7 @@ func main() {
 	//	"ignore-exit-codes": [
 	//		255
 	//	]
+
 	bs, _ := json.MarshalIndent(config, "", "\t")
 	fmt.Printf("config %s\n", bs)
 	for {
@@ -45,7 +46,11 @@ func main() {
 		}
 		mu.Unlock()
 		var wg sync.WaitGroup
-		wg.Add(1)
+		wg.Add(2)
+		go func() {
+			defer wg.Done()
+			config.runApps()
+		}()
 		go func() {
 			defer wg.Done()
 			config.runServices()
