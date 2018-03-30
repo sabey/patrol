@@ -73,7 +73,7 @@ func (self *PatrolService) validate() error {
 	}
 	return nil
 }
-func (self *PatrolService) StartService(service string) error {
+func (self *PatrolService) startService(service string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
 	defer cancel()
 	var cmd *exec.Cmd
@@ -84,7 +84,7 @@ func (self *PatrolService) StartService(service string) error {
 	}
 	return cmd.Run()
 }
-func (self *PatrolService) IsServiceRunning(service string) error {
+func (self *PatrolService) isServiceRunning(service string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	var cmd *exec.Cmd

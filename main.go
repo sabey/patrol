@@ -5,10 +5,14 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"sync"
+	"time"
 )
 
 var (
-	config_path = flag.String("config", "config.json", "path to patrol config file")
+	config_path      = flag.String("config", "config.json", "path to patrol config file")
+	is_running  bool = true
+	mu          sync.Mutex
 )
 
 func main() {
@@ -33,17 +37,20 @@ func main() {
 	//	]
 	bs, _ := json.MarshalIndent(config, "", "\t")
 	fmt.Printf("config %s\n", bs)
-
-	for service, ps := range config.Services {
-		if err := ps.IsServiceRunning(service); err != nil {
-			fmt.Printf("the service %s is not running: \"%s\"\n", service, err)
-			if err := ps.StartService(service); err != nil {
-				fmt.Printf("the service %s failed to start: \"%s\"\n", service, err)
-			} else {
-				fmt.Printf("the service %s started\n", service)
-			}
-		} else {
-			fmt.Printf("the service %s is running\n", service)
+	for {
+		mu.Lock()
+		if !is_running {
+			mu.Unlock()
+			break
 		}
+		mu.Unlock()
+		var wg sync.WaitGroup
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			config.runServices()
+		}()
+		wg.Wait()
+		<-time.After(time.Second * 15)
 	}
 }
