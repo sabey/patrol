@@ -15,6 +15,11 @@ var (
 	ERR_SERVICES_KEY_INVALID = fmt.Errorf("Service Key was invalid")
 	ERR_SERVICES_SERVICE_NIL = fmt.Errorf("Service was nil")
 )
+var (
+	// do not change this in this package
+	// change it in testing files or for debugging purposes only
+	unittesting bool = false
+)
 
 func CreatePatrol(
 	path string,

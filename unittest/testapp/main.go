@@ -63,16 +63,20 @@ func main() {
 	// send signal notifications to our variable `signals`
 	signal.Notify(
 		signals,
-		// kill -1 PID
-		syscall.SIGHUP,
-		// kill -2 PID
-		// this is the same as ctrl+c from the CLI
-		syscall.SIGINT,
-		// we're NOT going to quit on these! we're just going to log that we received them
-		// kill -10 PID
-		syscall.SIGUSR1,
-		// kill -12 PID
-		syscall.SIGUSR2,
+		// we're going to listen for all signals
+		// we're however only interested in these signals:
+		// // kill -1 PID
+		// syscall.SIGHUP,
+		// // kill -2 PID
+		// // this is the same as ctrl+c from the CLI
+		// syscall.SIGINT,
+		// // kill -9 PID
+		// syscall.SIGKILL,
+		// // we're NOT going to quit on these! we're just going to log that we received them
+		// // kill -10 PID
+		// syscall.SIGUSR1,
+		// // kill -12 PID
+		// syscall.SIGUSR2,
 	)
 	fmt.Println("we're going to block and wait for a signal")
 	for {
@@ -95,13 +99,23 @@ func main() {
 				log.Println("Received SIGINT, closing!")
 				done = true
 				break
+			case syscall.SIGKILL:
+				log.Println("Received SIGKILL, closing!")
+				done = true
+				break
 			case syscall.SIGUSR1:
 				fmt.Println("Received SIGUSR1, ignoring!")
 			case syscall.SIGUSR2:
 				log.Println("Received SIGUSR2, ignoring!")
+			case syscall.SIGTERM:
+				log.Println("Received SIGTERM, parent process died, dying in 15 seconds!")
+				go func() {
+					<-time.After(time.Second * 15)
+					log.Fatalln("cya")
+				}()
 			default:
-				// this shouldn't happen
-				log.Fatalf("Received Unknown?: %v\n", sig)
+				// don't try to handle this signal
+				log.Printf("Received Unknown?: %v\n", sig)
 			}
 		}
 		if done {
