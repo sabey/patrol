@@ -1,10 +1,12 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"sabey.co/unittest"
 	"testing"
+	"time"
 )
 
 func TestPatrolApp(t *testing.T) {
@@ -57,6 +59,8 @@ func TestPatrolApp(t *testing.T) {
 
 	unittest.IsNil(t, app.validate())
 
+	fmt.Println("app.getPID")
+
 	pid, err := app.getPID()
 	unittest.IsNil(t, err)
 	unittest.Equals(t, pid, 1254)
@@ -65,4 +69,22 @@ func TestPatrolApp(t *testing.T) {
 	unittest.IsNil(t, app.validate())
 	_, err = app.getPID()
 	unittest.NotNil(t, err)
+}
+func TestPatrolAppTestApp(t *testing.T) {
+	log.Println("TestPatrolAppTestApp")
+	wd, err := os.Getwd()
+	unittest.IsNil(t, err)
+	unittest.Equals(t, wd != "", true)
+	app := &PatrolApp{
+		Name:             "testapp",
+		KeepAlive:        APP_KEEPALIVE_PID_APP,
+		WorkingDirectory: wd + "/unittest/testapp",
+		PIDPath:          "testapp.pid",
+		LogDirectory:     "logs",
+		AppPath:          "testapp",
+	}
+	unittest.NotNil(t, app.isAppRunning())
+	unittest.IsNil(t, app.startApp())
+	<-time.After(time.Second * 2)
+	unittest.IsNil(t, app.isAppRunning())
 }

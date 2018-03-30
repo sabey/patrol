@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"strconv"
+	"time"
 )
 
 const (
@@ -136,13 +139,28 @@ func (self *PatrolApp) validate() error {
 	}
 	return nil
 }
-
 func (self *PatrolApp) startApp() error {
-	return nil
+	cmd := exec.Command(self.WorkingDirectory + "/" + self.AppPath)
+	cmd.Dir = self.WorkingDirectory
+	cmd.Stdin = os.Stdin
+	cmd.Stderr = os.Stderr
+	return cmd.Start()
 }
 func (self *PatrolApp) isAppRunning() error {
-	// do the kill command with the pid from getPID
-	return nil
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+	var cmd *exec.Cmd
+	if self.KeepAlive == APP_KEEPALIVE_PID_APP {
+		pid, err := self.getPID()
+		if err != nil {
+			log.Printf("failed to getPID: %s\n", err)
+			return err
+		}
+		cmd = exec.CommandContext(ctx, "kill", "-0", fmt.Sprintf("%d", pid))
+	} else {
+		return fmt.Errorf("KeepAlive not implemented")
+	}
+	return cmd.Run()
 }
 func (self *PatrolApp) getPID() (uint16, error) {
 	file, err := os.Open(self.WorkingDirectory + "/" + self.PIDPath)
@@ -155,7 +173,6 @@ func (self *PatrolApp) getPID() (uint16, error) {
 		log.Printf("failed to read PID file: %s\n", err)
 		return 0, err
 	}
-
 	pid, err := strconv.ParseUint(string(bytes.TrimSpace(b)), 10, 16)
 	if err != nil {
 		log.Printf("failed to convert parse PID file: %s\n", err)
