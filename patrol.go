@@ -7,6 +7,7 @@ import (
 )
 
 var (
+	ERR_CONFIG_NIL           = fmt.Errorf("Config was NIL")
 	ERR_PATROL_EMPTY         = fmt.Errorf("Patrol Apps and Servers were both empty")
 	ERR_APPS_KEY_EMPTY       = fmt.Errorf("App Key was empty")
 	ERR_APPS_KEY_INVALID     = fmt.Errorf("App Key was invalid")
@@ -38,6 +39,14 @@ func CreatePatrol(
 	if err := decoder.Decode(config); err != nil {
 		// couldn't decode file as json
 		return nil, err
+	}
+	if config == nil {
+		// decoded config was nil
+		// while this would rarely occur in practice, it is technically possible for config to be nil after decode/unmarshal
+		// a json file with the value of "null" would cause this to occur
+		// the only time this really plays out in reality is if someone were to POST null to a JSON API
+		// this something that is sometimes overlooked
+		return nil, ERR_CONFIG_NIL
 	}
 	if err := config.validate(); err != nil {
 		return nil, err
