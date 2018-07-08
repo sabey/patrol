@@ -1,10 +1,17 @@
-package main
+package patrol
 
 import (
 	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
+	"sync"
+)
+
+const (
+	TICKEVERY_MIN     = 5
+	TICKEVERY_MAX     = 120
+	TICKEVERY_DEFAULT = 15
 )
 
 var (
@@ -25,7 +32,7 @@ var (
 	unittesting bool = false
 )
 
-func CreatePatrol(
+func LoadPatrol(
 	path string,
 ) (
 	*Patrol,
@@ -68,6 +75,27 @@ type Patrol struct {
 	// Keys are NOT our binary name, Keys are only used as unique identifiers
 	// when sending keep alive, this unique identifier WILL be used!
 	Services map[string]*PatrolService `json:"services,omitempty"`
+	// Config
+	// this is an integer value for seconds
+	// we will multiply this by time.Second on use
+	TickEvery int `json:"tick-every,omitempty"`
+	// unsafe
+	// ticker
+	ticker_running bool
+	ticker_stop    bool
+	ticker_mu      sync.RWMutex
+}
+
+func (self *Patrol) IsValid() bool {
+	if self == nil {
+		return false
+	}
+	return true
+}
+func (self *Patrol) IsRunning() bool {
+	self.ticker_mu.RLock()
+	defer self.ticker_mu.RUnlock()
+	return self.ticker_running
 }
 
 func (self *Patrol) validate() error {
@@ -78,7 +106,9 @@ func (self *Patrol) validate() error {
 	}
 	// we need to check for one exception, JSON keys are case sensitive
 	// we won't allow any duplicate case insensitive keys to exist as our ID MAY be used as a hostname label
-	exists := make(map[string]struct{})
+	// we're actually going to create a secondary dereferenced map with our keys set to lowercase
+	// this way we can rely in the future on IDs being lowercase
+	apps := make(map[string]*PatrolApp)
 	// check apps
 	for id, app := range self.Apps {
 		if id == "" {
@@ -95,14 +125,16 @@ func (self *Patrol) validate() error {
 		}
 		// create lowercase ID
 		id = strings.ToLower(id)
-		if _, ok := exists[id]; ok {
+		if _, ok := apps[id]; ok {
 			// ID already exists!!
 			return ERR_APP_LABEL_DUPLICATE
 		}
-		exists[id] = struct{}{}
+		apps[id] = app
 	}
-	// reset exists
-	exists = make(map[string]struct{})
+	// overwrite apps
+	self.Apps = apps
+	// dereference and lowercase services
+	services := make(map[string]*PatrolService)
 	// check services
 	for id, service := range self.Services {
 		if id == "" {
@@ -119,11 +151,20 @@ func (self *Patrol) validate() error {
 		}
 		// create lowercase ID
 		id = strings.ToLower(id)
-		if _, ok := exists[id]; ok {
+		if _, ok := services[id]; ok {
 			// ID already exists!!
 			return ERR_SERVICE_LABEL_DUPLICATE
 		}
-		exists[id] = struct{}{}
+		services[id] = service
+	}
+	self.Services = services
+	// config
+	if self.TickEvery == 0 {
+		self.TickEvery = TICKEVERY_DEFAULT
+	} else if self.TickEvery < TICKEVERY_MIN {
+		self.TickEvery = TICKEVERY_MIN
+	} else if self.TickEvery > TICKEVERY_MAX {
+		self.TickEvery = TICKEVERY_MAX
 	}
 	return nil
 }
