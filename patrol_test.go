@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-func TestPatrol(t *testing.T) {
-	log.Println("TestPatrol")
+func TestPatrolServices(t *testing.T) {
+	log.Println("TestPatrolServices")
 
 	unittest.Equals(t, APP_NAME_MAXLENGTH, 255)
 
@@ -69,13 +69,26 @@ func TestPatrol(t *testing.T) {
 	// delete service so we can validate App
 	patrol.Services = make(map[string]*PatrolService)
 	unittest.Equals(t, patrol.validate(), ERR_PATROL_EMPTY)
+}
+func TestPatrolApps(t *testing.T) {
+	log.Println("TestPatrolApps")
+
+	patrol := &Patrol{}
+
+	unittest.Equals(t, patrol.validate(), ERR_PATROL_EMPTY)
+	// Apps must be initialized, the creation of the patrol object will not do this for you
+	patrol.Apps = make(map[string]*PatrolApp)
+	unittest.Equals(t, patrol.validate(), ERR_PATROL_EMPTY)
+
+	// add a service
+	patrol.Services = make(map[string]*PatrolService)
 
 	// empty App
 	patrol.Apps[""] = &PatrolApp{
 		KeepAlive: APP_KEEPALIVE_PID_PATROL,
 	}
 	// check that key exists
-	_, exists = patrol.Apps[""]
+	_, exists := patrol.Apps[""]
 	unittest.Equals(t, exists, true)
 	unittest.Equals(t, patrol.validate(), ERR_APPS_KEY_EMPTY)
 

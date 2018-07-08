@@ -15,16 +15,24 @@ const (
 )
 
 var (
-	ERR_CONFIG_NIL              = fmt.Errorf("Config was NIL")
-	ERR_PATROL_EMPTY            = fmt.Errorf("Patrol Apps and Servers were both empty")
-	ERR_APPS_KEY_EMPTY          = fmt.Errorf("App Key was empty")
-	ERR_APPS_KEY_INVALID        = fmt.Errorf("App Key was invalid")
-	ERR_APPS_APP_NIL            = fmt.Errorf("App was nil")
-	ERR_SERVICES_KEY_EMPTY      = fmt.Errorf("Service Key was empty")
-	ERR_SERVICES_KEY_INVALID    = fmt.Errorf("Service Key was invalid")
-	ERR_SERVICES_SERVICE_NIL    = fmt.Errorf("Service was nil")
-	ERR_APP_LABEL_DUPLICATE     = fmt.Errorf("Duplicate App Label")
-	ERR_SERVICE_LABEL_DUPLICATE = fmt.Errorf("Duplicate Service Label")
+	ERR_CONFIG_NIL                      = fmt.Errorf("Config was NIL")
+	ERR_PATROL_EMPTY                    = fmt.Errorf("Patrol Apps and Servers were both empty")
+	ERR_APPS_KEY_EMPTY                  = fmt.Errorf("App Key was empty")
+	ERR_APPS_KEY_INVALID                = fmt.Errorf("App Key was invalid")
+	ERR_APPS_APP_NIL                    = fmt.Errorf("App was nil")
+	ERR_SERVICES_KEY_EMPTY              = fmt.Errorf("Service Key was empty")
+	ERR_SERVICES_KEY_INVALID            = fmt.Errorf("Service Key was invalid")
+	ERR_SERVICES_SERVICE_NIL            = fmt.Errorf("Service was nil")
+	ERR_APP_LABEL_DUPLICATE             = fmt.Errorf("Duplicate App Label")
+	ERR_SERVICE_LABEL_DUPLICATE         = fmt.Errorf("Duplicate Service Label")
+	ERR_APPSTRIGGER_KEY_EMPTY           = fmt.Errorf("App Trigger was empty")
+	ERR_APPSTRIGGER_KEY_INVALID         = fmt.Errorf("App Trigger was invalid")
+	ERR_APPSTRIGGER_TRIGGER_NIL         = fmt.Errorf("AppTrigger NIL!")
+	ERR_APPSTRIGGER_LABEL_DUPLICATE     = fmt.Errorf("Duplicate AppTrigger Label")
+	ERR_SERVICESTRIGGER_KEY_EMPTY       = fmt.Errorf("Service Trigger was empty")
+	ERR_SERVICESTRIGGER_KEY_INVALID     = fmt.Errorf("Service Trigger was invalid")
+	ERR_SERVICESTRIGGER_TRIGGER_NIL     = fmt.Errorf("ServiceTrigger NIL!")
+	ERR_SERVICESTRIGGER_LABEL_DUPLICATE = fmt.Errorf("Duplicate ServiceTrigger Label")
 )
 var (
 	// do not change this in this package
@@ -70,11 +78,19 @@ type Patrol struct {
 	// Keys are NOT our binary name, Keys are only used as unique identifiers
 	// when sending keep alive, this unique identifier WILL be used!
 	Apps map[string]*PatrolApp `json:"apps,omitempty"`
+	// we're going to add some optional app functions
+	// these are NOT supported with JSON for obvious reasons
+	// these will have to be set manually!!!
+	AppsTrigger map[string]*TriggerApp `json:"-"`
 	// Services must contain a unique non empty key: ( 0-9 A-Z a-z - )
 	// SERVICE ID MUST be usable as a valid hostname label, ie: len <= 63 AND no starting/ending -
 	// Keys are NOT our binary name, Keys are only used as unique identifiers
 	// when sending keep alive, this unique identifier WILL be used!
 	Services map[string]*PatrolService `json:"services,omitempty"`
+	// we're going to add some optional services functions
+	// these are NOT supported with JSON for obvious reasons
+	// these will have to be set manually!!!
+	ServicesTrigger map[string]*TriggerService `json:"-"`
 	// Config
 	// this is an integer value for seconds
 	// we will multiply this by time.Second on use
@@ -133,6 +149,29 @@ func (self *Patrol) validate() error {
 	}
 	// overwrite apps
 	self.Apps = apps
+	// check apps trigger
+	apps_trigger := make(map[string]*TriggerApp)
+	for id, app := range self.AppsTrigger {
+		if id == "" {
+			return ERR_APPSTRIGGER_KEY_EMPTY
+		}
+		if !IsAppServiceID(id) {
+			return ERR_APPSTRIGGER_KEY_INVALID
+		}
+		if !app.IsValid() {
+			return ERR_APPSTRIGGER_TRIGGER_NIL
+		}
+		// we DO NOT require that a parent app actually exist!!
+		// we may choose to add a bunch of optional functions for services that aren't loaded from config
+		// create lowercase ID
+		id = strings.ToLower(id)
+		if _, ok := apps_trigger[id]; ok {
+			// ID already exists!!
+			return ERR_APPSTRIGGER_LABEL_DUPLICATE
+		}
+		apps_trigger[id] = app
+	}
+	self.AppsTrigger = apps_trigger
 	// dereference and lowercase services
 	services := make(map[string]*PatrolService)
 	// check services
@@ -158,6 +197,28 @@ func (self *Patrol) validate() error {
 		services[id] = service
 	}
 	self.Services = services
+	// check services trigger
+	services_trigger := make(map[string]*TriggerService)
+	for id, service := range self.ServicesTrigger {
+		if id == "" {
+			return ERR_SERVICESTRIGGER_KEY_EMPTY
+		}
+		if !IsAppServiceID(id) {
+			return ERR_SERVICESTRIGGER_KEY_INVALID
+		}
+		if !service.IsValid() {
+			return ERR_SERVICESTRIGGER_TRIGGER_NIL
+		}
+		// we DO NOT require that a parent service actually exist!!
+		// we may choose to add a bunch of optional functions for services that aren't loaded from config
+		// create lowercase ID
+		id = strings.ToLower(id)
+		if _, ok := services_trigger[id]; ok {
+			// ID already exists!!
+			return ERR_SERVICESTRIGGER_LABEL_DUPLICATE
+		}
+		services_trigger[id] = service
+	}
 	// config
 	if self.TickEvery == 0 {
 		self.TickEvery = TICKEVERY_DEFAULT
