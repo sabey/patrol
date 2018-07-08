@@ -10,6 +10,8 @@ import (
 const (
 	// service name maximum length in bytes
 	SERVICE_NAME_MAXLENGTH = 255
+	// service maximum length in bytes
+	SERVICE_MAXLENGTH = 63
 )
 
 const (
@@ -22,6 +24,8 @@ const (
 )
 
 var (
+	ERR_SERVICE_EMPTY              = fmt.Errorf("Service was empty")
+	ERR_SERVICE_MAXLENGTH          = fmt.Errorf("Service was longer than 63 bytes")
 	ERR_SERVICE_NAME_EMPTY         = fmt.Errorf("Service Name was empty")
 	ERR_SERVICE_NAME_MAXLENGTH     = fmt.Errorf("Service Name was longer than 255 bytes")
 	ERR_SERVICE_MANAGEMENT_INVALID = fmt.Errorf("Service Management was invalid, please select a method!")
@@ -35,6 +39,8 @@ type PatrolService struct {
 	Management int `json:"management,omitempty"`
 	// name is only used for the HTTP admin gui, it can contain anything but must be less than 255 bytes in length
 	Name string `json:"name,omitempty"`
+	// Service is the name of the executable and/or parameter
+	Service string `json:"service,omitempty"`
 	// these are a list of valid exit codes to ignore when returned from "service * status"
 	// by default 0 is always ignored, it is assumed to mean that the service is running
 	IgnoreExitCodes []uint8 `json:"ignore-exit-codes,omitempty"`
@@ -51,6 +57,12 @@ func (self *PatrolService) validate() error {
 		self.Management > SERVICE_MANAGEMENT_INITD {
 		// unknown management value
 		return ERR_SERVICE_MANAGEMENT_INVALID
+	}
+	if self.Service == "" {
+		return ERR_SERVICE_EMPTY
+	}
+	if len(self.Service) > SERVICE_MAXLENGTH {
+		return ERR_SERVICE_MAXLENGTH
 	}
 	if self.Name == "" {
 		return ERR_SERVICE_NAME_EMPTY
@@ -73,25 +85,25 @@ func (self *PatrolService) validate() error {
 	}
 	return nil
 }
-func (self *PatrolService) startService(service string) error {
+func (self *PatrolService) startService() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
 	defer cancel()
 	var cmd *exec.Cmd
 	if self.Management == SERVICE_MANAGEMENT_SERVICE {
-		cmd = exec.CommandContext(ctx, "service", service, "start")
+		cmd = exec.CommandContext(ctx, "service", self.Service, "start")
 	} else {
-		cmd = exec.CommandContext(ctx, fmt.Sprintf("/etc/init.d/%s", service), "start")
+		cmd = exec.CommandContext(ctx, fmt.Sprintf("/etc/init.d/%s", self.Service), "start")
 	}
 	return cmd.Run()
 }
-func (self *PatrolService) isServiceRunning(service string) error {
+func (self *PatrolService) isServiceRunning() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	var cmd *exec.Cmd
 	if self.Management == SERVICE_MANAGEMENT_SERVICE {
-		cmd = exec.CommandContext(ctx, "service", service, "status")
+		cmd = exec.CommandContext(ctx, "service", self.Service, "status")
 	} else {
-		cmd = exec.CommandContext(ctx, fmt.Sprintf("/etc/init.d/%s", service), "status")
+		cmd = exec.CommandContext(ctx, fmt.Sprintf("/etc/init.d/%s", self.Service), "status")
 	}
 	return cmd.Run()
 }

@@ -15,6 +15,13 @@ func TestPatrolService(t *testing.T) {
 	unittest.Equals(t, service.validate(), ERR_SERVICE_MANAGEMENT_INVALID)
 	service.Management = SERVICE_MANAGEMENT_SERVICE
 
+	unittest.Equals(t, service.validate(), ERR_SERVICE_EMPTY)
+
+	service.Service = "1234567890123456790123456789012345678901234567890123456789012345"
+	unittest.Equals(t, service.validate(), ERR_SERVICE_MAXLENGTH)
+
+	service.Service = "123456789012345679012345678901234567890123456789012345678901234"
+
 	unittest.Equals(t, service.validate(), ERR_SERVICE_NAME_EMPTY)
 
 	service.Name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"

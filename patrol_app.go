@@ -33,7 +33,7 @@ const (
 	// once an App spawns the App is required to write its own PID to file
 	// the upside to this is that if the parent process were to fork, the child process would write its new PID to file and Patrol would read and monitor that latest PID instead
 	// the downside to this is that we constantly have to load the PID from file and send "kill -0 PID" to check if the process is still alive
-	// the other downside is that we may want to optionally check that the PID belongs to AppPath, and if it were not we would have to respawn our App
+	// the other downside is that we may want to optionally check that the PID belongs to Binary, and if it were not we would have to respawn our App
 	// this will allow easy child forking and the ability for the parent process to exit after forking
 	// the other trade off is that we won't be able to see the exact time when our monitored PID process exits, leaving a possible delay between respawn
 	// see further notes at PatrolApp.PIDVerify
@@ -56,8 +56,8 @@ var (
 	ERR_APP_WORKINGDIRECTORY_EMPTY      = fmt.Errorf("App WorkingDirectory was empty")
 	ERR_APP_WORKINGDIRECTORY_RELATIVE   = fmt.Errorf("App WorkingDirectory was relative")
 	ERR_APP_WORKINGDIRECTORY_UNCLEAN    = fmt.Errorf("App WorkingDirectory was unclean")
-	ERR_APP_APPPATH_EMPTY               = fmt.Errorf("App AppPath was empty")
-	ERR_APP_APPPATH_UNCLEAN             = fmt.Errorf("App AppPath was unclean")
+	ERR_APP_BINARY_EMPTY                = fmt.Errorf("App Binary was empty")
+	ERR_APP_BINARY_UNCLEAN              = fmt.Errorf("App Binary was unclean")
 	ERR_APP_LOGDIRECTORY_EMPTY          = fmt.Errorf("App Log Directory was empty")
 	ERR_APP_LOGDIRECTORY_UNCLEAN        = fmt.Errorf("App Log Directory was unclean")
 	ERR_APP_KEEPALIVE_INVALID           = fmt.Errorf("App KeepAlive was invalid, please select a keep alive method!")
@@ -75,18 +75,18 @@ type PatrolApp struct {
 	KeepAlive int `json:"keepalive,omitempty"`
 	// name is only used for the HTTP admin gui, it can contain anything but must be less than 255 bytes in length
 	Name string `json:"name,omitempty"`
+	// Binary is the path to the executable
+	Binary string `json:"binary,omitempty"`
 	// Working Directory is currently required to be non empty
 	// we don't want Apps executing relative to the current directory, we want them to know what their reference is
 	// IF any other path is relative and not absolute, they will be considered relative to the working directory
 	WorkingDirectory string `json:"working-directory,omitempty"`
-	// App Path to the app executable
-	AppPath string `json:"app-path,omitempty"`
 	// Log Directory for stderr and stdout
 	LogDirectory string `json:"log-directory,omitempty"`
 	// path to pid file
 	// PID is optional, it is only required when using the PATROL or APP keepalive methods
 	PIDPath string `json:"pid-path,omitempty"`
-	// should we verify that the PID belongs to AppPath?
+	// should we verify that the PID belongs to Binary?
 	// the reason for this is that it is technically possible for your App to write a PID to file, exit, and then for another long running service to start with this same PID
 	// the problem here is that that other long running process would be confused for our App and we would assume it is running
 	// the only solution is to verify the processes name OR for you to continuously write your PID to file in intervals, say write to PID every 10 seconds
@@ -137,11 +137,11 @@ func (self *PatrolApp) validate() error {
 	if !IsPathClean(self.WorkingDirectory) {
 		return ERR_APP_WORKINGDIRECTORY_UNCLEAN
 	}
-	if self.AppPath == "" {
-		return ERR_APP_APPPATH_EMPTY
+	if self.Binary == "" {
+		return ERR_APP_BINARY_EMPTY
 	}
-	if !IsPathClean(self.AppPath) {
-		return ERR_APP_APPPATH_UNCLEAN
+	if !IsPathClean(self.Binary) {
+		return ERR_APP_BINARY_UNCLEAN
 	}
 	if self.LogDirectory == "" {
 		return ERR_APP_LOGDIRECTORY_EMPTY
@@ -162,9 +162,9 @@ func (self *PatrolApp) validate() error {
 	return nil
 }
 func (self *PatrolApp) startApp() error {
-	// we can't set WorkingDirectory and only execute just AppPath
-	// we must use the absolute path of WorkingDirectory and AppPath for execute to work properly
-	cmd := exec.Command(filepath.Clean(self.WorkingDirectory + "/" + self.AppPath))
+	// we can't set WorkingDirectory and only execute just Binary
+	// we must use the absolute path of WorkingDirectory and Binary for execute to work properly
+	cmd := exec.Command(filepath.Clean(self.WorkingDirectory + "/" + self.Binary))
 	// we still have to set our WorkingDirectory
 	cmd.Dir = self.WorkingDirectory
 	// SysProcAttr holds optional, operating system-specific attributes.
@@ -248,7 +248,7 @@ func (self *PatrolApp) getPID() (
 	error,
 ) {
 	// this function is only used by APP_KEEPALIVE_PID_APP
-	// we must use the absolute path of our WorkingDirectory and AppPath to find our PID
+	// we must use the absolute path of our WorkingDirectory and Binary to find our PID
 	file, err := os.Open(filepath.Clean(self.WorkingDirectory + "/" + self.PIDPath))
 	if err != nil {
 		// failed to open PID

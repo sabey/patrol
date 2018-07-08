@@ -4,25 +4,24 @@ import (
 	"path/filepath"
 )
 
-func IsAppServiceKey(
+func IsAppServiceID(
 	key string,
 ) bool {
 	if len(key) == 0 ||
-		len(key) > 32 {
+		len(key) > 63 {
 		return false
 	}
 	// ( 0-9 A-Z a-z - )
 	// if these accepted characters are to change, we are unwilling to ever support the character '/' and solo '.' or '..' sequences
 	// the key is intended to only be used in a URI path, there are no plans to use this as a label in a hostname
 	// if we change this, characters that are not a valid URI path delimiter must be encoded for use in our URL
-	if key == "." ||
-		key == ".." {
+	if key[0] == '-' ||
+		key[len(key)-1] == '-' {
 		// we can't accept current directory or parent directory keywords
 		return false
 	}
 	for _, r := range key {
-		if r != '-' &&
-			r != '.' {
+		if r != '-' {
 			if r < '0' ||
 				r > '9' && r < 'A' ||
 				r > 'Z' && r < 'a' ||

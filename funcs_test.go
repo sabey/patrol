@@ -10,24 +10,25 @@ import (
 func TestFuncs(t *testing.T) {
 	log.Println("TestFuncs")
 
-	fmt.Println("IsAppServiceKey")
-	unittest.Equals(t, IsAppServiceKey(""), false)
-	unittest.Equals(t, IsAppServiceKey("."), false)
-	unittest.Equals(t, IsAppServiceKey(".."), false)
-	unittest.Equals(t, IsAppServiceKey("-"), true)
-	unittest.Equals(t, IsAppServiceKey("..."), true)
-	unittest.Equals(t, IsAppServiceKey("12345678901234567901234567891234"), true)
-	unittest.Equals(t, IsAppServiceKey("123456789012345679012345678912345"), false)
+	fmt.Println("IsAppServiceID")
+	unittest.Equals(t, IsAppServiceID(""), false)
+	unittest.Equals(t, IsAppServiceID("."), false)
+	unittest.Equals(t, IsAppServiceID(".."), false)
+	unittest.Equals(t, IsAppServiceID("-"), false)
+	unittest.Equals(t, IsAppServiceID("a-"), false)
+	unittest.Equals(t, IsAppServiceID("-a"), false)
+	unittest.Equals(t, IsAppServiceID("a-a"), true)
+	unittest.Equals(t, IsAppServiceID("a--a"), true)
+	unittest.Equals(t, IsAppServiceID("123456789012345679012345678901234567890123456789012345678901234"), true)
+	unittest.Equals(t, IsAppServiceID("1234567890123456790123456789012345678901234567890123456789012345"), false)
 
 	for i := 0; i <= 0x7F; i++ {
-		// do not check for '.' here, it'll return false
-		if i == '-' ||
-			i >= '0' && i <= '9' ||
+		if i >= '0' && i <= '9' ||
 			i >= 'A' && i <= 'Z' ||
 			i >= 'a' && i <= 'z' {
-			unittest.Equals(t, IsAppServiceKey(string([]byte{byte(i)})), true)
+			unittest.Equals(t, IsAppServiceID(string([]byte{byte(i)})), true)
 		} else {
-			unittest.Equals(t, IsAppServiceKey(string([]byte{byte(i)})), false)
+			unittest.Equals(t, IsAppServiceID(string([]byte{byte(i)})), false)
 		}
 	}
 

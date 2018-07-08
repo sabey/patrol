@@ -2,6 +2,7 @@
   "apps": {
     "http": {
       "keepalive": 1,
+      "binary": "http",
       "name": "web server",
       "working-directory": "/home/patrol/http",
       "app-path": "httpd",
@@ -12,6 +13,7 @@
   "services": {
     "ssh": {
       "management": 1,
+      "service": "ssh",
       "name": "ssh",
       "ignore-exit-codes": [
         127

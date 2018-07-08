@@ -35,15 +35,15 @@ func TestPatrolApp(t *testing.T) {
 	unittest.Equals(t, app.validate(), ERR_APP_WORKINGDIRECTORY_UNCLEAN)
 
 	app.WorkingDirectory = "/directory"
-	unittest.Equals(t, app.validate(), ERR_APP_APPPATH_EMPTY)
+	unittest.Equals(t, app.validate(), ERR_APP_BINARY_EMPTY)
 
 	// setting working directory to cwd
 	app.WorkingDirectory = wd + "/unittest"
 
-	app.AppPath = "file/.."
-	unittest.Equals(t, app.validate(), ERR_APP_APPPATH_UNCLEAN)
+	app.Binary = "file/.."
+	unittest.Equals(t, app.validate(), ERR_APP_BINARY_UNCLEAN)
 
-	app.AppPath = "file"
+	app.Binary = "file"
 	unittest.Equals(t, app.validate(), ERR_APP_LOGDIRECTORY_EMPTY)
 
 	app.LogDirectory = "log-directory/."
@@ -90,7 +90,7 @@ func TestPatrolAppTestAppPIDAPP(t *testing.T) {
 		WorkingDirectory: wd + "/unittest/testapp",
 		PIDPath:          "testapp.pid",
 		LogDirectory:     "logs",
-		AppPath:          "testapp",
+		Binary:           "testapp",
 	}
 	// this will fail if testapp is somehow running
 	// testapp has a self destruct function, it should be about 30 seconds
