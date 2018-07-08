@@ -2,7 +2,7 @@ package patrol
 
 type ConfigService struct {
 	// management method
-	// this is required! you must choose, it can not default to 0, we can't make assumptions on how your app may function
+	// this is required! you must choose, it can not default to 0, we can't make assumptions on how your service may function
 	Management int `json:"management,omitempty"`
 	// name is only used for the HTTP admin gui, it can contain anything but must be less than 255 bytes in length
 	Name string `json:"name,omitempty"`
@@ -16,19 +16,24 @@ type ConfigService struct {
 	// Triggers
 	TriggerStart func(
 		id string,
-		app *Service,
+		service *Service,
 	) `json:"-"`
 	TriggerStarted func(
 		id string,
-		app *Service,
+		service *Service,
 	) `json:"-"`
 	TriggerStartFailed func(
 		id string,
-		app *Service,
+		service *Service,
 	) `json:"-"`
 	TriggerRunning func(
 		id string,
-		app *Service,
+		service *Service,
+	) `json:"-"`
+	TriggerStopped func(
+		id string,
+		service *Service,
+		history *History,
 	) `json:"-"`
 }
 
@@ -51,6 +56,7 @@ func (self *ConfigService) Clone() *ConfigService {
 		TriggerStarted:     self.TriggerStarted,
 		TriggerStartFailed: self.TriggerStartFailed,
 		TriggerRunning:     self.TriggerRunning,
+		TriggerStopped:     self.TriggerStopped,
 	}
 	for _, i := range self.IgnoreExitCodes {
 		config.IgnoreExitCodes = append(config.IgnoreExitCodes, i)

@@ -71,9 +71,12 @@ var (
 
 type App struct {
 	// safe
+	patrol *Patrol
+	id     string // we want a reference to our parent ID
 	config *ConfigApp
 	// unsafe
 	history []*History
+	started time.Time
 	// this is only used by APP_KEEPALIVE_PID_PATROL
 	// this should almost always be true, since we're handling our process management ourselves
 	// the only reason this should be false is if we're between reexecuting or we've stopped our process
@@ -95,17 +98,57 @@ func (self *App) IsValid() bool {
 	}
 	return true
 }
+func (self *App) GetID() string {
+	return self.id
+}
+func (self *App) GetPatrol() *Patrol {
+	return self.patrol
+}
 func (self *App) GetConfig() *ConfigApp {
 	return self.config.Clone()
 }
 func (self *App) GetHistory() []*History {
+	// dereference
 	history := make([]*History, 0, len(self.history))
 	for _, h := range self.history {
 		history = append(history, h.clone())
 	}
 	return history
 }
+func (self *App) saveHistory(
+	shutdown bool,
+) {
+	if !self.started.IsZero() {
+		// save history
+		if len(self.history) >= self.patrol.config.History {
+			self.history = self.history[1:]
+		}
+		h := &History{
+			Started:  self.started,
+			Stopped:  time.Now(),
+			Shutdown: shutdown,
+		}
+		self.history = append(self.history, h)
+		// unset previous started so we don't create duplicate histories
+		self.started = time.Time{}
+		// call trigger in a go routine so we don't deadlock
+		if self.config.TriggerStopped != nil {
+			go self.config.TriggerStopped(self.id, self, h)
+		}
+	}
+}
+func (self *App) GetStarted() time.Time {
+	return self.started
+}
 func (self *App) startApp() error {
+	// we are ASSUMING our app isn't started!!!
+	// this function should only ever be called by tick()
+	// we gotta lock and defer to set history
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	// save history
+	self.saveHistory(false)
+	now := time.Now()
 	// we can't set WorkingDirectory and only execute just Binary
 	// we must use the absolute path of WorkingDirectory and Binary for execute to work properly
 	cmd := exec.Command(filepath.Clean(self.config.WorkingDirectory + "/" + self.config.Binary))
@@ -139,35 +182,55 @@ func (self *App) startApp() error {
 		// failed to start
 		return err
 	}
+	// started!
+	self.started = now
+	self.is_running = true
 	// we have to call Wait() on our process and read the exit code
 	// if we don't we will end up with a zombie process
 	// zombie processes don't use a lot of system resources, but they will retain their PID
 	// we're just going to discard this action, we don't care what the exit code is, ideally later we can log this code in history
 	// as of right now for APP_KEEPALIVE_PID_APP we don't always expect to see an exit code as we're expecting children to fork
 	// tracking of the exit code makes a lot of sense for APP_KEEPALIVE_PID_PATROL because we ALWAYS see the exit code
-	go cmd.Wait()
+	go func() {
+		// we're going to need add functionality for if we choose to signal this command to stop
+		// we can either wrap our context? or use os.Process.Kill
+		// ideally we would want to use our context, because we're not sure what we would be signalling a kill to if this stopped before the kill
+		// context seems like the most ideal path to choose
+		cmd.Wait()
+		// currently this can't race because we ALWAYS check isAppRunning() before startApp() AND we only use tick() to start services
+		// this logic should never change, so it's not something to worry about right now
+		self.mu.Lock()
+		self.is_running = false
+		// save history
+		self.saveHistory(false)
+		self.mu.Unlock()
+	}()
 	return nil
 }
 func (self *App) isAppRunning() error {
+	// if we determine a process is NOT running we will set history - we will NOT attempt to restart anything!
+	// lock and defer incase we have to set history!
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	// check
 	if self.config.KeepAlive == APP_KEEPALIVE_HTTP ||
 		self.config.KeepAlive == APP_KEEPALIVE_UDP {
 		// check if we've been pinged recently
-		self.mu.RLock()
-		ping := self.ping
-		self.mu.RUnlock()
 		// if last ping + ping timeout is NOT after now we know that we've timedout
-		if time.Now().After(ping.Add(APP_PING_EVERY)) {
+		if time.Now().After(self.ping.Add(APP_PING_EVERY)) {
 			// expired
+			// save history
+			self.saveHistory(false)
 			return ERR_APP_PING_EXPIRED
 		}
 		// still alive
 		return nil
 	} else if self.config.KeepAlive == APP_KEEPALIVE_PID_PATROL {
 		// check our internal state
-		self.mu.RLock()
-		defer self.mu.RUnlock()
 		if !self.is_running {
 			// not running
+			// we do NOT have to save history!!!
+			// our teardown function after cmd.Wait() will save our history!
 			return ERR_APP_KEEPALIVE_PATROL_NOTRUNNING
 		}
 		// running
@@ -180,12 +243,21 @@ func (self *App) isAppRunning() error {
 	pid, err := self.getPID()
 	if err != nil {
 		// failed to find PID
+		// save history
+		self.saveHistory(false)
 		return err
 	}
 	// TODO: we should add PID verification here
 	// either before or after we signal to kill, it's unsure how this will work
 	cmd := exec.CommandContext(ctx, "kill", "-0", fmt.Sprintf("%d", pid))
-	return cmd.Run()
+	if err := cmd.Run(); err != nil {
+		// NOT running!
+		// save history
+		self.saveHistory(false)
+		return err
+	}
+	// running!
+	return nil
 }
 func (self *App) getPID() (
 	uint32,
@@ -208,9 +280,7 @@ func (self *App) getPID() (
 		// failed to parse PID
 		return 0, ERR_APP_PIDFILE_INVALID
 	}
-	self.mu.Lock()
 	self.pid = uint32(pid)
-	self.mu.Unlock()
 	return uint32(pid), nil
 }
 func (self *App) GetPID() uint32 {

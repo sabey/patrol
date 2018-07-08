@@ -42,6 +42,11 @@ type ConfigApp struct {
 		id string,
 		app *App,
 	) `json:"-"`
+	TriggerStopped func(
+		id string,
+		app *App,
+		history *History,
+	) `json:"-"`
 }
 
 func (self *ConfigApp) IsValid() bool {
@@ -66,6 +71,7 @@ func (self *ConfigApp) Clone() *ConfigApp {
 		TriggerStarted:     self.TriggerStarted,
 		TriggerStartFailed: self.TriggerStartFailed,
 		TriggerRunning:     self.TriggerRunning,
+		TriggerStopped:     self.TriggerStopped,
 	}
 }
 func (self *ConfigApp) Validate() error {

@@ -88,6 +88,12 @@ func TestPatrolAppTestAppPIDAPP(t *testing.T) {
 	unittest.Equals(t, wd != "", true)
 
 	app := &App{
+		// this must be set or we will get an an error when saving history
+		patrol: &Patrol{
+			config: &Config{
+				History: 5,
+			},
+		},
 		config: &ConfigApp{
 			Name:             "testapp",
 			KeepAlive:        APP_KEEPALIVE_PID_APP,
@@ -129,4 +135,10 @@ func TestPatrolAppTestAppPIDAPP(t *testing.T) {
 	fmt.Println("app closed")
 	// check that our process is dead
 	unittest.NotNil(t, app.isAppRunning())
+	// check our history
+
+	unittest.Equals(t, len(app.history), 1)
+	unittest.Equals(t, app.history[0].Started.IsZero(), false)
+	unittest.Equals(t, app.history[0].Stopped.IsZero(), false)
+	unittest.Equals(t, app.history[0].Shutdown, false)
 }

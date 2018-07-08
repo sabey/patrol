@@ -41,11 +41,15 @@ func CreatePatrol(
 	}
 	for id, app := range config.Apps {
 		p.apps[id] = &App{
+			id:     id,
+			patrol: p,
 			config: app,
 		}
 	}
 	for id, service := range config.Services {
 		p.services[id] = &Service{
+			id:     id,
+			patrol: p,
 			config: service,
 		}
 	}
