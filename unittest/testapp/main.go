@@ -1,24 +1,28 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"github.com/sabey/patrol"
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 )
 
-var (
-	keepalive = flag.Int("keepalive", 2, "KeepAlive Method: (1: \"Patrol\", 2: \"App\", 3: \"HTTP\", 4: \"UDP\")")
-)
-
 func main() {
 	start := time.Now()
-	if !flag.Parsed() {
-		flag.Parse()
+	// parse keepalive from our environment variable
+	ka := os.Getenv(patrol.APP_ENV_KEEPALIVE)
+	if ka == "" {
+		log.Fatalf("KeepAlive NOT set! Set ENV %s=ID\n", patrol.APP_ENV_KEEPALIVE)
+		return
+	}
+	keepalive, err := strconv.ParseUint(ka, 10, 64)
+	if err != nil {
+		log.Fatalln("Failed to parse KeepAlive!")
+		return
 	}
 	// log and fmt will be spread out throughout this app
 	// the reason for this is to send half of the msgs to stdout and the other to stderr
@@ -28,9 +32,9 @@ func main() {
 		<-time.After(time.Minute * 5)
 		log.Fatalln("testapp ran for too long, killing process")
 	}()
-	if *keepalive == patrol.APP_KEEPALIVE_PID_PATROL {
+	if keepalive == patrol.APP_KEEPALIVE_PID_PATROL {
 		log.Printf("KeepAlive: APP_KEEPALIVE_PID_PATROL - we will NOT write PID: %d to file!", os.Getpid())
-	} else if *keepalive == patrol.APP_KEEPALIVE_PID_APP {
+	} else if keepalive == patrol.APP_KEEPALIVE_PID_APP {
 		log.Println("KeepAlive: APP_KEEPALIVE_PID_APP")
 		// open testapp.pid
 		// truncate and open file, create file if it doesn't exist
@@ -51,12 +55,12 @@ func main() {
 			return
 		}
 		fmt.Printf("I've written our PID: %d to testapp.pid\n", os.Getpid())
-	} else if *keepalive == patrol.APP_KEEPALIVE_HTTP {
+	} else if keepalive == patrol.APP_KEEPALIVE_HTTP {
 		log.Fatalln("KeepAlive: APP_KEEPALIVE_HTTP - NOT IMPLEMENTED")
-	} else if *keepalive == patrol.APP_KEEPALIVE_UDP {
+	} else if keepalive == patrol.APP_KEEPALIVE_UDP {
 		log.Fatalln("KeepAlive: APP_KEEPALIVE_UDP - NOT IMPLEMENTED")
 	} else {
-		log.Fatalln("Unknown KeepAlive Method passed as a flag!")
+		log.Fatalln("Unknown KeepAlive Method!")
 		return
 	}
 	// create an unbuffered channel to listen for signals

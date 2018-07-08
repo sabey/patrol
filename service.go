@@ -33,6 +33,7 @@ type Service struct {
 	history  []*History
 	started  time.Time
 	disabled bool // takes its initial value from config
+	shutdown bool
 	mu       sync.RWMutex
 }
 
@@ -64,11 +65,16 @@ func (self *Service) IsDisabled() bool {
 func (self *Service) Disable() {
 	self.mu.Lock()
 	defer self.mu.Unlock()
+	if !self.started.IsZero() {
+		// shutdown this process
+		self.shutdown = true
+	}
 	self.disabled = true
 }
 func (self *Service) Enable() {
 	self.mu.Lock()
 	defer self.mu.Unlock()
+	self.shutdown = false
 	self.disabled = false
 }
 func (self *Service) GetStarted() time.Time {
@@ -84,25 +90,23 @@ func (self *Service) GetHistory() []*History {
 	}
 	return history
 }
-func (self *Service) saveHistory(
-	shutdown bool,
-) {
+func (self *Service) close() {
 	if !self.started.IsZero() {
-		// save history
+		// close service
 		if len(self.history) >= self.patrol.config.History {
 			self.history = self.history[1:]
 		}
 		h := &History{
 			Started:  self.started,
 			Stopped:  time.Now(),
-			Shutdown: shutdown,
+			Shutdown: self.shutdown,
 		}
 		self.history = append(self.history, h)
 		// unset previous started so we don't create duplicate histories
 		self.started = time.Time{}
 		// call trigger in a go routine so we don't deadlock
-		if self.config.TriggerStopped != nil {
-			go self.config.TriggerStopped(self.id, self, h)
+		if self.config.TriggerClosed != nil {
+			go self.config.TriggerClosed(self.id, self, h)
 		}
 	}
 }
@@ -112,8 +116,8 @@ func (self *Service) startService() error {
 	// we gotta lock and defer to set history
 	self.mu.Lock()
 	defer self.mu.Unlock()
-	// save history
-	self.saveHistory(false)
+	// close service
+	self.close()
 	now := time.Now()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
 	defer cancel()
@@ -146,8 +150,8 @@ func (self *Service) isServiceRunning() error {
 	}
 	if err := cmd.Run(); err != nil {
 		// NOT running!
-		// save history
-		self.saveHistory(false)
+		// close service
+		self.close()
 		return err
 	}
 	// running!

@@ -68,6 +68,9 @@ type ConfigApp struct {
 	// Each entry is of the form "key=value".
 	// If os.Cmd.Env is nil, the new process uses the current process's environment.
 	// If os.Cmd.Env contains duplicate environment keys, only the last value in the slice for each duplicate key is used.
+	//
+	// we're going to include our own patrol related environment variables
+	// so EnvParent would be important, since if a user expects nil Env they'll never get parent variables
 	Env []string `json:"env,omitempty"`
 	// if we want to optionally include our own args AND and still keep our original parent args we MUST use this!
 	EnvParent bool `json:"env-parent,omitempty"`
@@ -143,7 +146,7 @@ type ConfigApp struct {
 		id string,
 		app *App,
 	) `json:"-"`
-	TriggerStopped func(
+	TriggerClosed func(
 		id string,
 		app *App,
 		history *History,
@@ -183,7 +186,7 @@ func (self *ConfigApp) Clone() *ConfigApp {
 		TriggerStarted:     self.TriggerStarted,
 		TriggerStartFailed: self.TriggerStartFailed,
 		TriggerRunning:     self.TriggerRunning,
-		TriggerStopped:     self.TriggerStopped,
+		TriggerClosed:      self.TriggerClosed,
 	}
 	for _, a := range self.Args {
 		o.Args = append(o.Args, a)

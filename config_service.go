@@ -48,7 +48,7 @@ type ConfigService struct {
 		id string,
 		service *Service,
 	) `json:"-"`
-	TriggerStopped func(
+	TriggerClosed func(
 		id string,
 		service *Service,
 		history *History,
@@ -75,7 +75,7 @@ func (self *ConfigService) Clone() *ConfigService {
 		TriggerStarted:     self.TriggerStarted,
 		TriggerStartFailed: self.TriggerStartFailed,
 		TriggerRunning:     self.TriggerRunning,
-		TriggerStopped:     self.TriggerStopped,
+		TriggerClosed:      self.TriggerClosed,
 	}
 	for _, i := range self.IgnoreExitCodes {
 		config.IgnoreExitCodes = append(config.IgnoreExitCodes, i)

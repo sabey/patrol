@@ -19,6 +19,11 @@ const (
 	APP_NAME_MAXLENGTH = 255
 	// ping is used by APP_KEEPALIVE_HTTP and APP_KEEPALIVE_UDP
 	APP_PING_EVERY = time.Second * 30
+	// environment keys
+	APP_ENV_KEEPALIVE    = `PATROL_KEEPALIVE`
+	APP_ENV_PID_PATH     = `PATROL_PID`
+	APP_ENV_HTTP_ADDRESS = `PATROL_HTTP_ADDRESS`
+	APP_ENV_UDP_ADDRESS  = `PATROL_UDP_ADDRESS`
 )
 
 // there are multiple methods of process management, none of them are perfect! they all have their tradeoffs!!!
@@ -66,16 +71,16 @@ type App struct {
 	history  []*History
 	started  time.Time
 	disabled bool // takes its initial value from config
-	// this is only used by APP_KEEPALIVE_PID_PATROL
-	// this should almost always be true, since we're handling our process management ourselves
-	// the only reason this should be false is if we're between reexecuting or we've stopped our process
-	is_running bool
+	shutdown bool
 	// pid is set by all but only used by APP_KEEPALIVE_PID_APP to verify a process is running
 	// last PID we've found and verified
 	// the maximum PID value on a 32 bit system is 32767
 	// the maximum PID value on a 64 bit system is 2^22
 	// systems by default will default to 32767, but we should support up to uint32
 	pid uint32
+	// we're going to save our exit code for history
+	// this is only supported by APP_KEEPALIVE_PID_PATROL
+	exit_code uint8
 	// ping is used by APP_KEEPALIVE_HTTP and APP_KEEPALIVE_UDP
 	ping time.Time
 	mu   sync.RWMutex
@@ -109,11 +114,16 @@ func (self *App) IsDisabled() bool {
 func (self *App) Disable() {
 	self.mu.Lock()
 	defer self.mu.Unlock()
+	if !self.started.IsZero() {
+		// shutdown this process
+		self.shutdown = true
+	}
 	self.disabled = true
 }
 func (self *App) Enable() {
 	self.mu.Lock()
 	defer self.mu.Unlock()
+	self.shutdown = false
 	self.disabled = false
 }
 func (self *App) GetStarted() time.Time {
@@ -129,9 +139,7 @@ func (self *App) GetHistory() []*History {
 	}
 	return history
 }
-func (self *App) saveHistory(
-	shutdown bool,
-) {
+func (self *App) close() {
 	if !self.started.IsZero() {
 		// save history
 		if len(self.history) >= self.patrol.config.History {
@@ -140,14 +148,23 @@ func (self *App) saveHistory(
 		h := &History{
 			Started:  self.started,
 			Stopped:  time.Now(),
-			Shutdown: shutdown,
+			Shutdown: self.shutdown,
+		}
+		if self.config.KeepAlive == APP_KEEPALIVE_PID_PATROL {
+			// any other keep alive method we're just going to ignore the process PID and assume it's wrong
+			// for example if our APP controls the PID, when we ping to check if its alive, it would override PID with something incorrect
+			h.PID = self.pid
+			h.ExitCode = self.exit_code
 		}
 		self.history = append(self.history, h)
-		// unset previous started so we don't create duplicate histories
+		// reset values
 		self.started = time.Time{}
+		self.pid = 0
+		self.shutdown = false
+		self.exit_code = 0
 		// call trigger in a go routine so we don't deadlock
-		if self.config.TriggerStopped != nil {
-			go self.config.TriggerStopped(self.id, self, h)
+		if self.config.TriggerClosed != nil {
+			go self.config.TriggerClosed(self.id, self, h)
 		}
 	}
 }
@@ -157,8 +174,8 @@ func (self *App) startApp() error {
 	// we gotta lock and defer to set history
 	self.mu.Lock()
 	defer self.mu.Unlock()
-	// save history
-	self.saveHistory(false)
+	// close previous if it exists
+	self.close()
 	now := time.Now()
 	// we can't set WorkingDirectory and only execute just Binary
 	// we must use the absolute path of WorkingDirectory and Binary for execute to work properly
@@ -180,6 +197,8 @@ func (self *App) startApp() error {
 		}
 	}
 	// Env
+	// we're going to include our own environment variables
+	// so EnvParent would be important, since if a user expects nil Env they'll never get parent variables
 	if self.config.EnvParent {
 		// include parents environment variables
 		cmd.Env = os.Environ()
@@ -191,6 +210,17 @@ func (self *App) startApp() error {
 		if e := self.config.ExtraEnv(self.id, self); len(e) > 0 {
 			cmd.Env = append(cmd.Env, e...)
 		}
+	}
+	// patrol environment variables
+	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%d", APP_ENV_KEEPALIVE, self.config.KeepAlive))
+	if self.config.KeepAlive == APP_KEEPALIVE_PID_PATROL ||
+		self.config.KeepAlive == APP_KEEPALIVE_PID_APP {
+		// pid path
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", APP_ENV_PID_PATH, filepath.Clean(self.config.WorkingDirectory+"/"+self.config.PIDPath)))
+	} else if self.config.KeepAlive == APP_KEEPALIVE_HTTP {
+		// http address
+	} else if self.config.KeepAlive == APP_KEEPALIVE_UDP {
+		// udp address
 	}
 	// STD in/out/err
 	if self.config.Stdin != nil {
@@ -235,7 +265,11 @@ func (self *App) startApp() error {
 	}
 	// started!
 	self.started = now
-	self.is_running = true
+	if self.config.KeepAlive == APP_KEEPALIVE_PID_PATROL {
+		// we're going to copy our PID from our process
+		// any other keep alive method we're just going to ignore the process PID and assume it's wrong
+		self.pid = uint32(cmd.Process.Pid)
+	}
 	// we have to call Wait() on our process and read the exit code
 	// if we don't we will end up with a zombie process
 	// zombie processes don't use a lot of system resources, but they will retain their PID
@@ -247,13 +281,28 @@ func (self *App) startApp() error {
 		// we can either wrap our context? or use os.Process.Kill
 		// ideally we would want to use our context, because we're not sure what we would be signalling a kill to if this stopped before the kill
 		// context seems like the most ideal path to choose
-		cmd.Wait()
+		err := cmd.Wait()
+		var exit_code uint8 = 0
+		if err != nil && self.config.KeepAlive == APP_KEEPALIVE_PID_PATROL {
+			// we're going to copy our exit code from our result
+			// any other keep alive method we're just going to ignore the exit code and assume it's wrong
+			if exiterr, ok := err.(*exec.ExitError); ok {
+				// The program has exited with an exit code != 0
+				// This works on both Unix and Windows.
+				// Although package syscall is generally platform dependent,
+				// WaitStatus is defined for both Unix and Windows and in both cases has an ExitStatus() method with the same signature.
+				if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+					exit_code = uint8(status.ExitStatus())
+				}
+			}
+		}
 		// currently this can't race because we ALWAYS check isAppRunning() before startApp() AND we only use tick() to start services
 		// this logic should never change, so it's not something to worry about right now
 		self.mu.Lock()
-		self.is_running = false
-		// save history
-		self.saveHistory(false)
+		// set exit code
+		self.exit_code = exit_code
+		// close app
+		self.close()
 		self.mu.Unlock()
 	}()
 	return nil
@@ -270,29 +319,21 @@ func (self *App) isAppRunning() error {
 		// if last ping + ping timeout is NOT after now we know that we've timedout
 		if time.Now().After(self.ping.Add(APP_PING_EVERY)) {
 			// expired
-			// save history
-			self.saveHistory(false)
+			// close app
+			self.close()
 			return ERR_APP_PING_EXPIRED
 		}
-		// still alive
-		if self.started.IsZero() {
-			// we need to set started since this is our first time seeing this app
-			self.started = time.Now()
-		}
+		// running!
 		return nil
 	} else if self.config.KeepAlive == APP_KEEPALIVE_PID_PATROL {
 		// check our internal state
-		if !self.is_running {
+		if self.started.IsZero() {
 			// not running
 			// we do NOT have to save history!!!
 			// our teardown function after cmd.Wait() will save our history!
 			return ERR_APP_KEEPALIVE_PATROL_NOTRUNNING
 		}
-		// running
-		if self.started.IsZero() {
-			// we need to set started since this is our first time seeing this app
-			self.started = time.Now()
-		}
+		// running!
 		return nil
 	}
 	// we have to ping our PID to determine if we're running
@@ -302,8 +343,8 @@ func (self *App) isAppRunning() error {
 	pid, err := self.getPID()
 	if err != nil {
 		// failed to find PID
-		// save history
-		self.saveHistory(false)
+		// close app
+		self.close()
 		return err
 	}
 	// TODO: we should add PID verification here
@@ -311,8 +352,8 @@ func (self *App) isAppRunning() error {
 	cmd := exec.CommandContext(ctx, "kill", "-0", fmt.Sprintf("%d", pid))
 	if err := cmd.Run(); err != nil {
 		// NOT running!
-		// save history
-		self.saveHistory(false)
+		// close app
+		self.close()
 		return err
 	}
 	// running!
