@@ -51,22 +51,10 @@ const (
 )
 
 var (
-	ERR_APP_NAME_EMPTY                  = fmt.Errorf("App Name was empty")
-	ERR_APP_NAME_MAXLENGTH              = fmt.Errorf("App Name was longer than 255 bytes")
-	ERR_APP_WORKINGDIRECTORY_EMPTY      = fmt.Errorf("App WorkingDirectory was empty")
-	ERR_APP_WORKINGDIRECTORY_RELATIVE   = fmt.Errorf("App WorkingDirectory was relative")
-	ERR_APP_WORKINGDIRECTORY_UNCLEAN    = fmt.Errorf("App WorkingDirectory was unclean")
-	ERR_APP_BINARY_EMPTY                = fmt.Errorf("App Binary was empty")
-	ERR_APP_BINARY_UNCLEAN              = fmt.Errorf("App Binary was unclean")
-	ERR_APP_LOGDIRECTORY_EMPTY          = fmt.Errorf("App Log Directory was empty")
-	ERR_APP_LOGDIRECTORY_UNCLEAN        = fmt.Errorf("App Log Directory was unclean")
-	ERR_APP_KEEPALIVE_INVALID           = fmt.Errorf("App KeepAlive was invalid, please select a keep alive method!")
-	ERR_APP_PIDPATH_EMPTY               = fmt.Errorf("App PIDPATH was empty")
-	ERR_APP_PIDPATH_UNCLEAN             = fmt.Errorf("App PIDPath was unclean")
-	ERR_APP_PIDFILE_NOTFOUND            = fmt.Errorf("App PID File not found")
-	ERR_APP_PIDFILE_INVALID             = fmt.Errorf("App PID File was invalid")
 	ERR_APP_PING_EXPIRED                = fmt.Errorf("App Ping Expired")
 	ERR_APP_KEEPALIVE_PATROL_NOTRUNNING = fmt.Errorf("App KeepAlive Patrol Method not running")
+	ERR_APP_PIDFILE_NOTFOUND            = fmt.Errorf("App PID File not found")
+	ERR_APP_PIDFILE_INVALID             = fmt.Errorf("App PID File was invalid")
 )
 
 type App struct {
@@ -75,8 +63,9 @@ type App struct {
 	id     string // we want a reference to our parent ID
 	config *ConfigApp
 	// unsafe
-	history []*History
-	started time.Time
+	history  []*History
+	started  time.Time
+	disabled bool // takes its initial value from config
 	// this is only used by APP_KEEPALIVE_PID_PATROL
 	// this should almost always be true, since we're handling our process management ourselves
 	// the only reason this should be false is if we're between reexecuting or we've stopped our process
@@ -111,6 +100,21 @@ func (self *App) IsRunning() bool {
 	self.mu.RLock()
 	defer self.mu.RUnlock()
 	return !self.started.IsZero()
+}
+func (self *App) IsDisabled() bool {
+	self.mu.RLock()
+	defer self.mu.RUnlock()
+	return self.disabled
+}
+func (self *App) Disable() {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	self.disabled = true
+}
+func (self *App) Enable() {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	self.disabled = false
 }
 func (self *App) GetStarted() time.Time {
 	self.mu.RLock()
@@ -158,14 +162,59 @@ func (self *App) startApp() error {
 	now := time.Now()
 	// we can't set WorkingDirectory and only execute just Binary
 	// we must use the absolute path of WorkingDirectory and Binary for execute to work properly
-	cmd := exec.Command(filepath.Clean(self.config.WorkingDirectory + "/" + self.config.Binary))
+	var cmd *exec.Cmd
+	if self.config.ExecuteTimeout > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(self.config.ExecuteTimeout))
+		defer cancel()
+		cmd = exec.CommandContext(ctx, filepath.Clean(self.config.WorkingDirectory+"/"+self.config.Binary))
+	} else {
+		cmd = exec.Command(filepath.Clean(self.config.WorkingDirectory + "/" + self.config.Binary))
+	}
+	// Args
+	if len(self.config.Args) > 0 {
+		cmd.Args = self.config.Args
+	}
+	if self.config.ExtraArgs != nil {
+		if a := self.config.ExtraArgs(self.id, self); len(a) > 0 {
+			cmd.Args = append(cmd.Args, a...)
+		}
+	}
+	// Env
+	if self.config.EnvParent {
+		// include parents environment variables
+		cmd.Env = os.Environ()
+	}
+	if len(self.config.Env) > 0 {
+		cmd.Env = append(cmd.Env, self.config.Env...)
+	}
+	if self.config.ExtraEnv != nil {
+		if e := self.config.ExtraEnv(self.id, self); len(e) > 0 {
+			cmd.Env = append(cmd.Env, e...)
+		}
+	}
+	// STD in/out/err
+	if self.config.Stdin != nil {
+		cmd.Stdin = self.config.Stdin
+	}
+	if self.config.Stdout != nil {
+		cmd.Stdout = self.config.Stdout
+	}
+	if self.config.Stderr != nil {
+		cmd.Stderr = self.config.Stderr
+	}
+	// extra files
+	if self.config.ExtraFiles != nil {
+		if e := self.config.ExtraFiles(self.id, self); len(e) > 0 {
+			cmd.ExtraFiles = e
+		}
+	}
 	// we still have to set our WorkingDirectory
 	cmd.Dir = self.config.WorkingDirectory
 	// SysProcAttr holds optional, operating system-specific attributes.
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		// we want our children to have their own process group IDs
 		// the reason for this is that we want them to run on their own
-		// our shell by default will act as a catchall for the signals
+		// our shell by default which will act as a catchall for the signals
 		// ideally we would like our children to receive their own signal
 		Setpgid: true,
 		// 0 causes us to set the group id to the process id
@@ -178,11 +227,6 @@ func (self *App) startApp() error {
 		// we don't have to close our process, but we should be aware that we're not being monitored
 		// some processes may notice they receive 2 SIGTERMS, I'm not sure why it's doing this, just ignore additional signals
 		Pdeathsig: syscall.SIGTERM,
-	}
-	if unittesting {
-		// we're going to hijack our stderr and stdout for easy debugging
-		cmd.Stderr = os.Stderr
-		cmd.Stdout = os.Stdout
 	}
 	// start will start our process but will not wait for execute to finish running
 	if err := cmd.Start(); err != nil {

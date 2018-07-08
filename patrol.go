@@ -14,12 +14,6 @@ const (
 	HISTORY_DEFAULT   = 100
 )
 
-var (
-	// do not change this in this package
-	// change it in testing files or for debugging purposes only
-	unittesting bool = false
-)
-
 func CreatePatrol(
 	config *Config,
 ) (
@@ -41,16 +35,18 @@ func CreatePatrol(
 	}
 	for id, app := range config.Apps {
 		p.apps[id] = &App{
-			id:     id,
-			patrol: p,
-			config: app,
+			id:       id,
+			patrol:   p,
+			config:   app,
+			disabled: app.Disabled,
 		}
 	}
 	for id, service := range config.Services {
 		p.services[id] = &Service{
-			id:     id,
-			patrol: p,
-			config: service,
+			id:       id,
+			patrol:   p,
+			config:   service,
+			disabled: service.Disabled,
 		}
 	}
 	return p, nil

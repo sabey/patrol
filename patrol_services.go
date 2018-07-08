@@ -8,6 +8,10 @@ import (
 func (self *Patrol) runServices() {
 	var wg sync.WaitGroup
 	for id, service := range self.services {
+		if service.IsDisabled() {
+			// ignore
+			continue
+		}
 		wg.Add(1)
 		go func(id string, service *Service) {
 			defer wg.Done()

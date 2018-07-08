@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/sabey/patrol"
 	"log"
 	"os"
 	"os/signal"
@@ -27,9 +28,9 @@ func main() {
 		<-time.After(time.Minute * 5)
 		log.Fatalln("testapp ran for too long, killing process")
 	}()
-	if *keepalive == 1 {
+	if *keepalive == patrol.APP_KEEPALIVE_PID_PATROL {
 		log.Printf("KeepAlive: APP_KEEPALIVE_PID_PATROL - we will NOT write PID: %d to file!", os.Getpid())
-	} else if *keepalive == 2 {
+	} else if *keepalive == patrol.APP_KEEPALIVE_PID_APP {
 		log.Println("KeepAlive: APP_KEEPALIVE_PID_APP")
 		// open testapp.pid
 		// truncate and open file, create file if it doesn't exist
@@ -50,9 +51,9 @@ func main() {
 			return
 		}
 		fmt.Printf("I've written our PID: %d to testapp.pid\n", os.Getpid())
-	} else if *keepalive == 3 {
+	} else if *keepalive == patrol.APP_KEEPALIVE_HTTP {
 		log.Fatalln("KeepAlive: APP_KEEPALIVE_HTTP - NOT IMPLEMENTED")
-	} else if *keepalive == 4 {
+	} else if *keepalive == patrol.APP_KEEPALIVE_UDP {
 		log.Fatalln("KeepAlive: APP_KEEPALIVE_UDP - NOT IMPLEMENTED")
 	} else {
 		log.Fatalln("Unknown KeepAlive Method passed as a flag!")

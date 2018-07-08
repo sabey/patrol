@@ -24,25 +24,16 @@ const (
 	SERVICE_MANAGEMENT_INITD
 )
 
-var (
-	ERR_SERVICE_EMPTY              = fmt.Errorf("Service was empty")
-	ERR_SERVICE_MAXLENGTH          = fmt.Errorf("Service was longer than 63 bytes")
-	ERR_SERVICE_NAME_EMPTY         = fmt.Errorf("Service Name was empty")
-	ERR_SERVICE_NAME_MAXLENGTH     = fmt.Errorf("Service Name was longer than 255 bytes")
-	ERR_SERVICE_MANAGEMENT_INVALID = fmt.Errorf("Service Management was invalid, please select a method!")
-	ERR_SERVICE_INVALID_EXITCODE   = fmt.Errorf("Service contained an Invalid Exit Code")
-	ERR_SERVICE_DUPLICATE_EXITCODE = fmt.Errorf("Service contained a Duplicate Exit Code")
-)
-
 type Service struct {
 	// safe
 	patrol *Patrol
 	id     string // we want a reference to our parent ID
 	config *ConfigService
 	// unsafe
-	history []*History
-	started time.Time
-	mu      sync.RWMutex
+	history  []*History
+	started  time.Time
+	disabled bool // takes its initial value from config
+	mu       sync.RWMutex
 }
 
 func (self *Service) IsValid() bool {
@@ -64,6 +55,21 @@ func (self *Service) IsRunning() bool {
 	self.mu.RLock()
 	defer self.mu.RUnlock()
 	return !self.started.IsZero()
+}
+func (self *Service) IsDisabled() bool {
+	self.mu.RLock()
+	defer self.mu.RUnlock()
+	return self.disabled
+}
+func (self *Service) Disable() {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	self.disabled = true
+}
+func (self *Service) Enable() {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	self.disabled = false
 }
 func (self *Service) GetStarted() time.Time {
 	self.mu.RLock()
