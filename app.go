@@ -107,6 +107,16 @@ func (self *App) GetPatrol() *Patrol {
 func (self *App) GetConfig() *ConfigApp {
 	return self.config.Clone()
 }
+func (self *App) IsRunning() bool {
+	self.mu.RLock()
+	defer self.mu.RUnlock()
+	return !self.started.IsZero()
+}
+func (self *App) GetStarted() time.Time {
+	self.mu.RLock()
+	defer self.mu.RUnlock()
+	return self.started
+}
 func (self *App) GetHistory() []*History {
 	// dereference
 	history := make([]*History, 0, len(self.history))
@@ -136,9 +146,6 @@ func (self *App) saveHistory(
 			go self.config.TriggerStopped(self.id, self, h)
 		}
 	}
-}
-func (self *App) GetStarted() time.Time {
-	return self.started
 }
 func (self *App) startApp() error {
 	// we are ASSUMING our app isn't started!!!
@@ -224,6 +231,10 @@ func (self *App) isAppRunning() error {
 			return ERR_APP_PING_EXPIRED
 		}
 		// still alive
+		if self.started.IsZero() {
+			// we need to set started since this is our first time seeing this app
+			self.started = time.Now()
+		}
 		return nil
 	} else if self.config.KeepAlive == APP_KEEPALIVE_PID_PATROL {
 		// check our internal state
@@ -234,6 +245,10 @@ func (self *App) isAppRunning() error {
 			return ERR_APP_KEEPALIVE_PATROL_NOTRUNNING
 		}
 		// running
+		if self.started.IsZero() {
+			// we need to set started since this is our first time seeing this app
+			self.started = time.Now()
+		}
 		return nil
 	}
 	// we have to ping our PID to determine if we're running
@@ -257,6 +272,10 @@ func (self *App) isAppRunning() error {
 		return err
 	}
 	// running!
+	if self.started.IsZero() {
+		// we need to set started since this is our first time seeing this app
+		self.started = time.Now()
+	}
 	return nil
 }
 func (self *App) getPID() (

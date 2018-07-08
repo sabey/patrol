@@ -60,6 +60,16 @@ func (self *Service) GetPatrol() *Patrol {
 func (self *Service) GetConfig() *ConfigService {
 	return self.config.Clone()
 }
+func (self *Service) IsRunning() bool {
+	self.mu.RLock()
+	defer self.mu.RUnlock()
+	return !self.started.IsZero()
+}
+func (self *Service) GetStarted() time.Time {
+	self.mu.RLock()
+	defer self.mu.RUnlock()
+	return self.started
+}
 func (self *Service) GetHistory() []*History {
 	// dereference
 	history := make([]*History, 0, len(self.history))
@@ -135,5 +145,9 @@ func (self *Service) isServiceRunning() error {
 		return err
 	}
 	// running!
+	if self.started.IsZero() {
+		// we need to set started since this is our first time seeing this service
+		self.started = time.Now()
+	}
 	return nil
 }
