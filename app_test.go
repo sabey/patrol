@@ -17,48 +17,51 @@ func TestPatrolApp(t *testing.T) {
 	unittest.IsNil(t, err)
 	unittest.Equals(t, wd != "", true)
 
-	app := &PatrolApp{
+	config := &ConfigApp{
 		KeepAlive: APP_KEEPALIVE_PID_PATROL,
 	}
-	unittest.Equals(t, app.validate(), ERR_APP_NAME_EMPTY)
+	unittest.Equals(t, config.Validate(), ERR_APP_NAME_EMPTY)
 
-	app.Name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	unittest.Equals(t, app.validate(), ERR_APP_NAME_MAXLENGTH)
+	config.Name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	unittest.Equals(t, config.Validate(), ERR_APP_NAME_MAXLENGTH)
 
-	app.Name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-	unittest.Equals(t, app.validate(), ERR_APP_WORKINGDIRECTORY_EMPTY)
+	config.Name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	unittest.Equals(t, config.Validate(), ERR_APP_WORKINGDIRECTORY_EMPTY)
 
-	app.WorkingDirectory = "directory"
-	unittest.Equals(t, app.validate(), ERR_APP_WORKINGDIRECTORY_RELATIVE)
+	config.WorkingDirectory = "directory"
+	unittest.Equals(t, config.Validate(), ERR_APP_WORKINGDIRECTORY_RELATIVE)
 
-	app.WorkingDirectory = "/directory/."
-	unittest.Equals(t, app.validate(), ERR_APP_WORKINGDIRECTORY_UNCLEAN)
+	config.WorkingDirectory = "/directory/."
+	unittest.Equals(t, config.Validate(), ERR_APP_WORKINGDIRECTORY_UNCLEAN)
 
-	app.WorkingDirectory = "/directory"
-	unittest.Equals(t, app.validate(), ERR_APP_BINARY_EMPTY)
+	config.WorkingDirectory = "/directory"
+	unittest.Equals(t, config.Validate(), ERR_APP_BINARY_EMPTY)
 
 	// setting working directory to cwd
-	app.WorkingDirectory = wd + "/unittest"
+	config.WorkingDirectory = wd + "/unittest"
 
-	app.Binary = "file/.."
-	unittest.Equals(t, app.validate(), ERR_APP_BINARY_UNCLEAN)
+	config.Binary = "file/.."
+	unittest.Equals(t, config.Validate(), ERR_APP_BINARY_UNCLEAN)
 
-	app.Binary = "file"
-	unittest.Equals(t, app.validate(), ERR_APP_LOGDIRECTORY_EMPTY)
+	config.Binary = "file"
+	unittest.Equals(t, config.Validate(), ERR_APP_LOGDIRECTORY_EMPTY)
 
-	app.LogDirectory = "log-directory/."
-	unittest.Equals(t, app.validate(), ERR_APP_LOGDIRECTORY_UNCLEAN)
+	config.LogDirectory = "log-directory/."
+	unittest.Equals(t, config.Validate(), ERR_APP_LOGDIRECTORY_UNCLEAN)
 
-	app.LogDirectory = "log-directory"
-	unittest.Equals(t, app.validate(), ERR_APP_PIDPATH_EMPTY)
+	config.LogDirectory = "log-directory"
+	unittest.Equals(t, config.Validate(), ERR_APP_PIDPATH_EMPTY)
 
-	app.PIDPath = "pid/.."
-	unittest.Equals(t, app.validate(), ERR_APP_PIDPATH_UNCLEAN)
+	config.PIDPath = "pid/.."
+	unittest.Equals(t, config.Validate(), ERR_APP_PIDPATH_UNCLEAN)
 
 	// changing pid to app.pid
-	app.PIDPath = "app.pid"
+	config.PIDPath = "app.pid"
+	unittest.IsNil(t, config.Validate())
 
-	unittest.IsNil(t, app.validate())
+	app := &App{
+		config: config,
+	}
 
 	fmt.Println("app.getPID")
 
@@ -66,8 +69,8 @@ func TestPatrolApp(t *testing.T) {
 	unittest.IsNil(t, err)
 	unittest.Equals(t, pid, 1254)
 
-	app.PIDPath = "bad.pid"
-	unittest.IsNil(t, app.validate())
+	app.config.PIDPath = "bad.pid"
+	unittest.IsNil(t, app.config.Validate())
 	_, err = app.getPID()
 	unittest.NotNil(t, err)
 }
@@ -84,14 +87,17 @@ func TestPatrolAppTestAppPIDAPP(t *testing.T) {
 	unittest.IsNil(t, err)
 	unittest.Equals(t, wd != "", true)
 
-	app := &PatrolApp{
-		Name:             "testapp",
-		KeepAlive:        APP_KEEPALIVE_PID_APP,
-		WorkingDirectory: wd + "/unittest/testapp",
-		PIDPath:          "testapp.pid",
-		LogDirectory:     "logs",
-		Binary:           "testapp",
+	app := &App{
+		config: &ConfigApp{
+			Name:             "testapp",
+			KeepAlive:        APP_KEEPALIVE_PID_APP,
+			WorkingDirectory: wd + "/unittest/testapp",
+			PIDPath:          "testapp.pid",
+			LogDirectory:     "logs",
+			Binary:           "testapp",
+		},
 	}
+
 	// this will fail if testapp is somehow running
 	// testapp has a self destruct function, it should be about 30 seconds
 	unittest.NotNil(t, app.isAppRunning())

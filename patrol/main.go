@@ -19,9 +19,15 @@ func main() {
 	if !flag.Parsed() {
 		flag.Parse()
 	}
-	p, err := patrol.LoadPatrol(*config_path)
+	config, err := patrol.LoadConfig(*config_path)
 	if err != nil {
-		log.Printf("./patrol/patrol.main(): failed to create Patrol: %s\n", err)
+		log.Printf("./patrol/patrol.main(): failed to Load Patrol Config: %s\n", err)
+		os.Exit(254)
+		return
+	}
+	p, err := patrol.CreatePatrol(config)
+	if err != nil {
+		log.Printf("./patrol/patrol.main(): failed to Create Patrol: %s\n", err)
 		os.Exit(255)
 		return
 	}

@@ -36,7 +36,7 @@ const (
 	// the other downside is that we may want to optionally check that the PID belongs to Binary, and if it were not we would have to respawn our App
 	// this will allow easy child forking and the ability for the parent process to exit after forking
 	// the other trade off is that we won't be able to see the exact time when our monitored PID process exits, leaving a possible delay between respawn
-	// see further notes at PatrolApp.PIDVerify
+	// see further notes at App.PIDVerify
 	APP_KEEPALIVE_PID_APP
 	// KeepAlive is controlled by HTTP:
 	// once an App spawns the App is required intermittently send a HTTP POST to the Patrol JSON API as the keepalive method
@@ -69,30 +69,11 @@ var (
 	ERR_APP_KEEPALIVE_PATROL_NOTRUNNING = fmt.Errorf("App KeepAlive Patrol Method not running")
 )
 
-type PatrolApp struct {
-	// keep alive method
-	// this is required! you must choose, it can not default to 0, we can't make assumptions on how your app may function
-	KeepAlive int `json:"keepalive,omitempty"`
-	// name is only used for the HTTP admin gui, it can contain anything but must be less than 255 bytes in length
-	Name string `json:"name,omitempty"`
-	// Binary is the path to the executable
-	Binary string `json:"binary,omitempty"`
-	// Working Directory is currently required to be non empty
-	// we don't want Apps executing relative to the current directory, we want them to know what their reference is
-	// IF any other path is relative and not absolute, they will be considered relative to the working directory
-	WorkingDirectory string `json:"working-directory,omitempty"`
-	// Log Directory for stderr and stdout
-	LogDirectory string `json:"log-directory,omitempty"`
-	// path to pid file
-	// PID is optional, it is only required when using the PATROL or APP keepalive methods
-	PIDPath string `json:"pid-path,omitempty"`
-	// should we verify that the PID belongs to Binary?
-	// the reason for this is that it is technically possible for your App to write a PID to file, exit, and then for another long running service to start with this same PID
-	// the problem here is that that other long running process would be confused for our App and we would assume it is running
-	// the only solution is to verify the processes name OR for you to continuously write your PID to file in intervals, say write to PID every 10 seconds
-	// the problem with the constant PID writing is that should your parent fork and create a child, you would want to stop writing the parent PID and only write the child PID!
-	PIDVerify bool `json:"pid-verify,omitempty"`
-	// private
+type App struct {
+	// safe
+	config *ConfigApp
+	// unsafe
+	history []*History
 	// this is only used by APP_KEEPALIVE_PID_PATROL
 	// this should almost always be true, since we're handling our process management ourselves
 	// the only reason this should be false is if we're between reexecuting or we've stopped our process
@@ -108,65 +89,28 @@ type PatrolApp struct {
 	mu   sync.RWMutex
 }
 
-func (self *PatrolApp) IsValid() bool {
+func (self *App) IsValid() bool {
 	if self == nil {
 		return false
 	}
 	return true
 }
-func (self *PatrolApp) validate() error {
-	if self.KeepAlive < APP_KEEPALIVE_PID_PATROL ||
-		self.KeepAlive > APP_KEEPALIVE_UDP {
-		// unknown keep alive value
-		return ERR_APP_KEEPALIVE_INVALID
-	}
-	if self.Name == "" {
-		return ERR_APP_NAME_EMPTY
-	}
-	if len(self.Name) > APP_NAME_MAXLENGTH {
-		return ERR_APP_NAME_MAXLENGTH
-	}
-	if self.WorkingDirectory == "" {
-		return ERR_APP_WORKINGDIRECTORY_EMPTY
-	}
-	if self.WorkingDirectory[0] != '/' {
-		// working directory can not be relative
-		// we require that it is absolute, so that other paths may be relative to it
-		return ERR_APP_WORKINGDIRECTORY_RELATIVE
-	}
-	if !IsPathClean(self.WorkingDirectory) {
-		return ERR_APP_WORKINGDIRECTORY_UNCLEAN
-	}
-	if self.Binary == "" {
-		return ERR_APP_BINARY_EMPTY
-	}
-	if !IsPathClean(self.Binary) {
-		return ERR_APP_BINARY_UNCLEAN
-	}
-	if self.LogDirectory == "" {
-		return ERR_APP_LOGDIRECTORY_EMPTY
-	}
-	if !IsPathClean(self.LogDirectory) {
-		return ERR_APP_LOGDIRECTORY_UNCLEAN
-	}
-	if self.KeepAlive == APP_KEEPALIVE_PID_PATROL ||
-		self.KeepAlive == APP_KEEPALIVE_PID_APP {
-		// PID is required
-		if self.PIDPath == "" {
-			return ERR_APP_PIDPATH_EMPTY
-		}
-		if !IsPathClean(self.PIDPath) {
-			return ERR_APP_PIDPATH_UNCLEAN
-		}
-	}
-	return nil
+func (self *App) GetConfig() *ConfigApp {
+	return self.config.Clone()
 }
-func (self *PatrolApp) startApp() error {
+func (self *App) GetHistory() []*History {
+	history := make([]*History, 0, len(self.history))
+	for _, h := range self.history {
+		history = append(history, h.clone())
+	}
+	return history
+}
+func (self *App) startApp() error {
 	// we can't set WorkingDirectory and only execute just Binary
 	// we must use the absolute path of WorkingDirectory and Binary for execute to work properly
-	cmd := exec.Command(filepath.Clean(self.WorkingDirectory + "/" + self.Binary))
+	cmd := exec.Command(filepath.Clean(self.config.WorkingDirectory + "/" + self.config.Binary))
 	// we still have to set our WorkingDirectory
-	cmd.Dir = self.WorkingDirectory
+	cmd.Dir = self.config.WorkingDirectory
 	// SysProcAttr holds optional, operating system-specific attributes.
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		// we want our children to have their own process group IDs
@@ -204,9 +148,9 @@ func (self *PatrolApp) startApp() error {
 	go cmd.Wait()
 	return nil
 }
-func (self *PatrolApp) isAppRunning() error {
-	if self.KeepAlive == APP_KEEPALIVE_HTTP ||
-		self.KeepAlive == APP_KEEPALIVE_UDP {
+func (self *App) isAppRunning() error {
+	if self.config.KeepAlive == APP_KEEPALIVE_HTTP ||
+		self.config.KeepAlive == APP_KEEPALIVE_UDP {
 		// check if we've been pinged recently
 		self.mu.RLock()
 		ping := self.ping
@@ -218,7 +162,7 @@ func (self *PatrolApp) isAppRunning() error {
 		}
 		// still alive
 		return nil
-	} else if self.KeepAlive == APP_KEEPALIVE_PID_PATROL {
+	} else if self.config.KeepAlive == APP_KEEPALIVE_PID_PATROL {
 		// check our internal state
 		self.mu.RLock()
 		defer self.mu.RUnlock()
@@ -243,13 +187,13 @@ func (self *PatrolApp) isAppRunning() error {
 	cmd := exec.CommandContext(ctx, "kill", "-0", fmt.Sprintf("%d", pid))
 	return cmd.Run()
 }
-func (self *PatrolApp) getPID() (
+func (self *App) getPID() (
 	uint32,
 	error,
 ) {
 	// this function is only used by APP_KEEPALIVE_PID_APP
 	// we must use the absolute path of our WorkingDirectory and Binary to find our PID
-	file, err := os.Open(filepath.Clean(self.WorkingDirectory + "/" + self.PIDPath))
+	file, err := os.Open(filepath.Clean(self.config.WorkingDirectory + "/" + self.config.PIDPath))
 	if err != nil {
 		// failed to open PID
 		return 0, ERR_APP_PIDFILE_NOTFOUND
@@ -269,7 +213,7 @@ func (self *PatrolApp) getPID() (
 	self.mu.Unlock()
 	return uint32(pid), nil
 }
-func (self *PatrolApp) GetPID() uint32 {
+func (self *App) GetPID() uint32 {
 	// this may not be the latest PID but it's the latest PID we're aware of
 	self.mu.RLock()
 	defer self.mu.RUnlock()

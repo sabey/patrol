@@ -15,7 +15,7 @@ var (
 func (self *Patrol) Start() error {
 	self.ticker_mu.Lock()
 	defer self.ticker_mu.Unlock()
-	if self.ticker_running {
+	if !self.ticker_running.IsZero() {
 		// ticker running
 		return ERR_PATROL_ALREADYRUNNING
 	}
@@ -25,7 +25,7 @@ func (self *Patrol) Start() error {
 func (self *Patrol) Stop() error {
 	self.ticker_mu.Lock()
 	defer self.ticker_mu.Unlock()
-	if !self.ticker_running {
+	if self.ticker_running.IsZero() {
 		// ticker not running
 		return ERR_PATROL_NOTRUNNING
 	}
@@ -35,7 +35,7 @@ func (self *Patrol) Stop() error {
 func (self *Patrol) tick() {
 	log.Println("./patrol.tick(): starting")
 	self.ticker_mu.Lock()
-	if self.ticker_running {
+	if !self.ticker_running.IsZero() {
 		// ticker is running
 		self.ticker_mu.Unlock()
 		return
@@ -45,14 +45,14 @@ func (self *Patrol) tick() {
 		self.ticker_mu.Unlock()
 		return
 	}
-	self.ticker_running = true
+	self.ticker_running = time.Now()
 	self.ticker_mu.Unlock()
 	log.Println("./patrol.tick(): started")
 	defer func() {
 		log.Println("./patrol.tick(): stopping")
 		self.ticker_mu.Lock()
 		self.ticker_stop = false
-		self.ticker_running = false
+		self.ticker_running = time.Time{}
 		self.ticker_mu.Unlock()
 		log.Println("./patrol.tick(): stopped")
 	}()
@@ -76,6 +76,6 @@ func (self *Patrol) tick() {
 			self.runServices()
 		}()
 		wg.Wait()
-		<-time.After(time.Second * time.Duration(self.TickEvery))
+		<-time.After(time.Second * time.Duration(self.config.TickEvery))
 	}
 }

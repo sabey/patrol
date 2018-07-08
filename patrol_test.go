@@ -11,44 +11,44 @@ func TestPatrolServices(t *testing.T) {
 
 	unittest.Equals(t, APP_NAME_MAXLENGTH, 255)
 
-	patrol := &Patrol{}
+	config := &Config{}
 
-	unittest.Equals(t, patrol.validate(), ERR_PATROL_EMPTY)
-	// Apps must be initialized, the creation of the patrol object will not do this for you
-	patrol.Apps = make(map[string]*PatrolApp)
-	unittest.Equals(t, patrol.validate(), ERR_PATROL_EMPTY)
+	unittest.Equals(t, config.Validate(), ERR_PATROL_EMPTY)
+	// Apps must be initialized, the creation of the config object will not do this for you
+	config.Apps = make(map[string]*ConfigApp)
+	unittest.Equals(t, config.Validate(), ERR_PATROL_EMPTY)
 
 	// add a service
-	patrol.Services = make(map[string]*PatrolService)
+	config.Services = make(map[string]*ConfigService)
 	// empty Service
-	patrol.Services[""] = &PatrolService{}
+	config.Services[""] = &ConfigService{}
 	// check that key exists
-	_, exists := patrol.Services[""]
+	_, exists := config.Services[""]
 	unittest.Equals(t, exists, true)
-	unittest.Equals(t, patrol.validate(), ERR_SERVICES_KEY_EMPTY)
+	unittest.Equals(t, config.Validate(), ERR_SERVICES_KEY_EMPTY)
 
 	// delete empty key
-	delete(patrol.Services, "")
-	_, exists = patrol.Services[""]
+	delete(config.Services, "")
+	_, exists = config.Services[""]
 	unittest.Equals(t, exists, false)
 
 	// check for invalid key
-	patrol.Services["1234567890123456790123456789012345678901234567890123456789012345"] = &PatrolService{
+	config.Services["1234567890123456790123456789012345678901234567890123456789012345"] = &ConfigService{
 		Management: SERVICE_MANAGEMENT_INITD,
 	}
-	unittest.Equals(t, patrol.validate(), ERR_SERVICES_KEY_INVALID)
+	unittest.Equals(t, config.Validate(), ERR_SERVICES_KEY_INVALID)
 
 	// delete invalid key
-	delete(patrol.Services, "1234567890123456790123456789012345678901234567890123456789012345")
-	_, exists = patrol.Services["1234567890123456790123456789012345678901234567890123456789012345"]
+	delete(config.Services, "1234567890123456790123456789012345678901234567890123456789012345")
+	_, exists = config.Services["1234567890123456790123456789012345678901234567890123456789012345"]
 	unittest.Equals(t, exists, false)
 
-	service := &PatrolService{
+	service := &ConfigService{
 		// empty object
 	}
-	patrol.Services["ssh"] = service
-	// we're no longer going to get a patrol error, so we're good!
-	unittest.Equals(t, patrol.validate(), ERR_SERVICE_MANAGEMENT_INVALID)
+	config.Services["ssh"] = service
+	// we're no longer going to get a config error, so we're good!
+	unittest.Equals(t, config.Validate(), ERR_SERVICE_MANAGEMENT_INVALID)
 
 	// create a valid service
 	service.Service = "SSH"
@@ -56,92 +56,101 @@ func TestPatrolServices(t *testing.T) {
 	service.Management = SERVICE_MANAGEMENT_SERVICE
 
 	// valid config!
-	unittest.IsNil(t, patrol.validate())
+	unittest.IsNil(t, config.Validate())
+
+	// create patrol
+	patrol, err := CreatePatrol(config)
+	unittest.IsNil(t, err)
+	unittest.NotNil(t, patrol)
 
 	// add duplicate case insensitive key
 	// we can reuse our http object
-	patrol.Services["SSH"] = service
-	unittest.Equals(t, len(patrol.Services), 2)
+	config.Services["SSH"] = service
+	unittest.Equals(t, len(config.Services), 2)
 
-	// validate
-	unittest.Equals(t, patrol.validate(), ERR_SERVICE_LABEL_DUPLICATE)
+	// Validate
+	unittest.Equals(t, config.Validate(), ERR_SERVICE_LABEL_DUPLICATE)
 
-	// delete service so we can validate App
-	patrol.Services = make(map[string]*PatrolService)
-	unittest.Equals(t, patrol.validate(), ERR_PATROL_EMPTY)
+	// delete service so we can Validate App
+	config.Services = make(map[string]*ConfigService)
+	unittest.Equals(t, config.Validate(), ERR_PATROL_EMPTY)
 }
 func TestPatrolApps(t *testing.T) {
 	log.Println("TestPatrolApps")
 
-	patrol := &Patrol{}
+	config := &Config{}
 
-	unittest.Equals(t, patrol.validate(), ERR_PATROL_EMPTY)
-	// Apps must be initialized, the creation of the patrol object will not do this for you
-	patrol.Apps = make(map[string]*PatrolApp)
-	unittest.Equals(t, patrol.validate(), ERR_PATROL_EMPTY)
+	unittest.Equals(t, config.Validate(), ERR_PATROL_EMPTY)
+	// Apps must be initialized, the creation of the config object will not do this for you
+	config.Apps = make(map[string]*ConfigApp)
+	unittest.Equals(t, config.Validate(), ERR_PATROL_EMPTY)
 
 	// add a service
-	patrol.Services = make(map[string]*PatrolService)
+	config.Services = make(map[string]*ConfigService)
 
 	// empty App
-	patrol.Apps[""] = &PatrolApp{
+	config.Apps[""] = &ConfigApp{
 		KeepAlive: APP_KEEPALIVE_PID_PATROL,
 	}
 	// check that key exists
-	_, exists := patrol.Apps[""]
+	_, exists := config.Apps[""]
 	unittest.Equals(t, exists, true)
-	unittest.Equals(t, patrol.validate(), ERR_APPS_KEY_EMPTY)
+	unittest.Equals(t, config.Validate(), ERR_APPS_KEY_EMPTY)
 
 	// delete empty key
-	delete(patrol.Apps, "")
-	_, exists = patrol.Apps[""]
+	delete(config.Apps, "")
+	_, exists = config.Apps[""]
 	unittest.Equals(t, exists, false)
 
 	// check for invalid key
-	patrol.Apps["1234567890123456790123456789012345678901234567890123456789012345"] = &PatrolApp{
+	config.Apps["1234567890123456790123456789012345678901234567890123456789012345"] = &ConfigApp{
 		KeepAlive: APP_KEEPALIVE_PID_PATROL,
 	}
-	unittest.Equals(t, patrol.validate(), ERR_APPS_KEY_INVALID)
+	unittest.Equals(t, config.Validate(), ERR_APPS_KEY_INVALID)
 
 	// delete invalid key
-	delete(patrol.Apps, "1234567890123456790123456789012345678901234567890123456789012345")
-	_, exists = patrol.Apps["1234567890123456790123456789012345678901234567890123456789012345"]
+	delete(config.Apps, "1234567890123456790123456789012345678901234567890123456789012345")
+	_, exists = config.Apps["1234567890123456790123456789012345678901234567890123456789012345"]
 	unittest.Equals(t, exists, false)
 
 	// valid object
-	app := &PatrolApp{
+	app := &ConfigApp{
 		// empty object
 	}
-	patrol.Apps["http"] = app
+	config.Apps["http"] = app
 
 	// no keep alive
-	unittest.Equals(t, patrol.validate(), ERR_APP_KEEPALIVE_INVALID)
+	unittest.Equals(t, config.Validate(), ERR_APP_KEEPALIVE_INVALID)
 	app.KeepAlive = APP_KEEPALIVE_PID_PATROL
 
-	unittest.Equals(t, patrol.validate(), ERR_APP_NAME_EMPTY)
+	unittest.Equals(t, config.Validate(), ERR_APP_NAME_EMPTY)
 	app.Name = "name"
 
-	unittest.Equals(t, patrol.validate(), ERR_APP_WORKINGDIRECTORY_EMPTY)
+	unittest.Equals(t, config.Validate(), ERR_APP_WORKINGDIRECTORY_EMPTY)
 	app.WorkingDirectory = "/directory"
 
-	unittest.Equals(t, patrol.validate(), ERR_APP_BINARY_EMPTY)
+	unittest.Equals(t, config.Validate(), ERR_APP_BINARY_EMPTY)
 	app.Binary = "file"
 
-	unittest.Equals(t, patrol.validate(), ERR_APP_LOGDIRECTORY_EMPTY)
+	unittest.Equals(t, config.Validate(), ERR_APP_LOGDIRECTORY_EMPTY)
 	app.LogDirectory = "log-directory"
 
-	unittest.Equals(t, patrol.validate(), ERR_APP_PIDPATH_EMPTY)
+	unittest.Equals(t, config.Validate(), ERR_APP_PIDPATH_EMPTY)
 	app.PIDPath = "pid"
 
 	// valid config!
-	unittest.IsNil(t, patrol.validate())
+	unittest.IsNil(t, config.Validate())
+
+	// create patrol
+	patrol, err := CreatePatrol(config)
+	unittest.IsNil(t, err)
+	unittest.NotNil(t, patrol)
 
 	// add duplicate case insensitive key
 	// we can reuse our http object
-	patrol.Apps["HTTP"] = app
-	unittest.Equals(t, len(patrol.Apps), 2)
+	config.Apps["HTTP"] = app
+	unittest.Equals(t, len(config.Apps), 2)
 
-	// validate
-	unittest.Equals(t, patrol.validate(), ERR_APP_LABEL_DUPLICATE)
-
+	// Validate
+	unittest.Equals(t, config.Validate(), ERR_APP_LABEL_DUPLICATE)
 }
