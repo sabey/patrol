@@ -71,7 +71,6 @@ type App struct {
 	history  []*History
 	started  time.Time
 	disabled bool // takes its initial value from config
-	shutdown bool
 	// pid is set by all but only used by APP_KEEPALIVE_PID_APP to verify a process is running
 	// last PID we've found and verified
 	// the maximum PID value on a 32 bit system is 32767
@@ -114,16 +113,11 @@ func (self *App) IsDisabled() bool {
 func (self *App) Disable() {
 	self.mu.Lock()
 	defer self.mu.Unlock()
-	if !self.started.IsZero() {
-		// shutdown this process
-		self.shutdown = true
-	}
 	self.disabled = true
 }
 func (self *App) Enable() {
 	self.mu.Lock()
 	defer self.mu.Unlock()
-	self.shutdown = false
 	self.disabled = false
 }
 func (self *App) GetStarted() time.Time {
@@ -146,21 +140,21 @@ func (self *App) close() {
 			self.history = self.history[1:]
 		}
 		h := &History{
+			// we're always going to log PID even if there's a chance it doesn't exist
+			// for example if our APP controls the PID, when we ping to check if its alive, it would override PID with something incorrect
+			// pid is garaunteed to always exist for APP_KEEPALIVE_PID_PATROL
+			PID:      self.pid,
 			Started:  self.started,
 			Stopped:  time.Now(),
-			Shutdown: self.shutdown,
-		}
-		if self.config.KeepAlive == APP_KEEPALIVE_PID_PATROL {
-			// any other keep alive method we're just going to ignore the process PID and assume it's wrong
-			// for example if our APP controls the PID, when we ping to check if its alive, it would override PID with something incorrect
-			h.PID = self.pid
-			h.ExitCode = self.exit_code
+			Disabled: self.disabled,
+			Shutdown: self.patrol.shutdown,
+			// exit code is only garaunteed to exist for APP_KEEPALIVE_PID_PATROL
+			ExitCode: self.exit_code,
 		}
 		self.history = append(self.history, h)
 		// reset values
 		self.started = time.Time{}
 		self.pid = 0
-		self.shutdown = false
 		self.exit_code = 0
 		// call trigger in a go routine so we don't deadlock
 		if self.config.TriggerClosed != nil {
@@ -169,11 +163,6 @@ func (self *App) close() {
 	}
 }
 func (self *App) startApp() error {
-	// we are ASSUMING our app isn't started!!!
-	// this function should only ever be called by tick()
-	// we gotta lock and defer to set history
-	self.mu.Lock()
-	defer self.mu.Unlock()
 	// close previous if it exists
 	self.close()
 	now := time.Now()
@@ -308,10 +297,6 @@ func (self *App) startApp() error {
 	return nil
 }
 func (self *App) isAppRunning() error {
-	// if we determine a process is NOT running we will set history - we will NOT attempt to restart anything!
-	// lock and defer incase we have to set history!
-	self.mu.Lock()
-	defer self.mu.Unlock()
 	// check
 	if self.config.KeepAlive == APP_KEEPALIVE_HTTP ||
 		self.config.KeepAlive == APP_KEEPALIVE_UDP {
@@ -362,6 +347,24 @@ func (self *App) isAppRunning() error {
 		self.started = time.Now()
 	}
 	return nil
+}
+func (self *App) signalStop() {
+	// we're going to signal our App if our App is disabled OR if we're shutting down Patrol
+	// we can only do this if we have a PID, we don't care what keepalive method we use so long as a PID exists
+	// we're going to discard any errors
+	if self.pid > 0 {
+		if process, err := os.FindProcess(int(self.pid)); err == nil {
+			// we're going to keep our signals different than syscall.SIGTERM
+			// we're going to leave syscall.SIGTERM to be reserved for Patrol ACTUALLY closing!
+			if self.patrol.shutdown {
+				// notify that Patrol is gracefully shutting down
+				process.Signal(syscall.SIGUSR1)
+			} else {
+				// notify that the App has been disabled
+				process.Signal(syscall.SIGUSR2)
+			}
+		}
+	}
 }
 func (self *App) getPID() (
 	uint32,

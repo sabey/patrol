@@ -10,11 +10,16 @@ import (
 var (
 	ERR_PATROL_ALREADYRUNNING = fmt.Errorf("Patrol is already running!")
 	ERR_PATROL_NOTRUNNING     = fmt.Errorf("Patrol is NOT running!")
+	ERR_PATROL_SHUTDOWN       = fmt.Errorf("Patrol is Shutdown")
 )
 
 func (self *Patrol) Start() error {
-	self.ticker_mu.Lock()
-	defer self.ticker_mu.Unlock()
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	if self.shutdown {
+		// patrol is shutdown
+		return ERR_PATROL_SHUTDOWN
+	}
 	if !self.ticker_running.IsZero() {
 		// ticker running
 		return ERR_PATROL_ALREADYRUNNING
@@ -23,8 +28,8 @@ func (self *Patrol) Start() error {
 	return nil
 }
 func (self *Patrol) Stop() error {
-	self.ticker_mu.Lock()
-	defer self.ticker_mu.Unlock()
+	self.mu.Lock()
+	defer self.mu.Unlock()
 	if self.ticker_running.IsZero() {
 		// ticker not running
 		return ERR_PATROL_NOTRUNNING
@@ -34,37 +39,45 @@ func (self *Patrol) Stop() error {
 }
 func (self *Patrol) tick() {
 	log.Println("./patrol.tick(): starting")
-	self.ticker_mu.Lock()
+	self.mu.Lock()
 	if !self.ticker_running.IsZero() {
 		// ticker is running
-		self.ticker_mu.Unlock()
+		self.mu.Unlock()
+		return
+	}
+	if self.shutdown {
+		// patrol is shutdown
+		self.mu.Unlock()
 		return
 	}
 	if self.ticker_stop {
 		// ticker is stopped
-		self.ticker_mu.Unlock()
+		self.mu.Unlock()
 		return
 	}
 	self.ticker_running = time.Now()
-	self.ticker_mu.Unlock()
+	self.mu.Unlock()
 	log.Println("./patrol.tick(): started")
 	defer func() {
 		log.Println("./patrol.tick(): stopping")
-		self.ticker_mu.Lock()
+		self.mu.Lock()
 		self.ticker_stop = false
 		self.ticker_running = time.Time{}
-		self.ticker_mu.Unlock()
+		self.mu.Unlock()
 		log.Println("./patrol.tick(): stopped")
 	}()
 	var wg sync.WaitGroup
 	for {
-		self.ticker_mu.RLock()
+		self.mu.RLock()
+		// if we're shutting down, do not close yet
+		// we first want to notify our apps/services we're closing
+		shutdown := self.shutdown
 		if self.ticker_stop {
-			self.ticker_mu.RUnlock()
+			self.mu.RUnlock()
 			// stopped
 			return
 		}
-		self.ticker_mu.RUnlock()
+		self.mu.RUnlock()
 		// tick
 		wg.Add(2)
 		go func() {
@@ -76,6 +89,10 @@ func (self *Patrol) tick() {
 			self.runServices()
 		}()
 		wg.Wait()
+		if shutdown {
+			// we're done!
+			return
+		}
 		<-time.After(time.Second * time.Duration(self.config.TickEvery))
 	}
 }

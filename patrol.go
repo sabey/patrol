@@ -58,23 +58,24 @@ type Patrol struct {
 	apps     map[string]*App
 	services map[string]*Service
 	// unsafe
+	shutdown bool
 	// ticker
 	ticker_running time.Time
 	ticker_stop    bool
-	ticker_mu      sync.RWMutex
+	mu             sync.RWMutex
 }
 
 func (self *Patrol) IsValid() bool {
 	return self.config.IsValid()
 }
 func (self *Patrol) IsRunning() bool {
-	self.ticker_mu.RLock()
-	defer self.ticker_mu.RUnlock()
+	self.mu.RLock()
+	defer self.mu.RUnlock()
 	return !self.ticker_running.IsZero()
 }
 func (self *Patrol) GetStarted() time.Time {
-	self.ticker_mu.RLock()
-	defer self.ticker_mu.RUnlock()
+	self.mu.RLock()
+	defer self.mu.RUnlock()
 	return self.ticker_running
 }
 func (self *Patrol) GetConfig() *Config {
@@ -95,4 +96,14 @@ func (self *Patrol) GetServices() map[string]*Service {
 		services[k] = v
 	}
 	return services
+}
+func (self *Patrol) Shutdown() {
+	self.mu.Lock()
+	defer self.mu.Unlock()
+	self.shutdown = true
+}
+func (self *Patrol) IsShutdown() bool {
+	self.mu.RLock()
+	defer self.mu.RUnlock()
+	return self.shutdown
 }

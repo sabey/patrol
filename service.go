@@ -33,7 +33,6 @@ type Service struct {
 	history  []*History
 	started  time.Time
 	disabled bool // takes its initial value from config
-	shutdown bool
 	mu       sync.RWMutex
 }
 
@@ -65,16 +64,11 @@ func (self *Service) IsDisabled() bool {
 func (self *Service) Disable() {
 	self.mu.Lock()
 	defer self.mu.Unlock()
-	if !self.started.IsZero() {
-		// shutdown this process
-		self.shutdown = true
-	}
 	self.disabled = true
 }
 func (self *Service) Enable() {
 	self.mu.Lock()
 	defer self.mu.Unlock()
-	self.shutdown = false
 	self.disabled = false
 }
 func (self *Service) GetStarted() time.Time {
@@ -99,7 +93,7 @@ func (self *Service) close() {
 		h := &History{
 			Started:  self.started,
 			Stopped:  time.Now(),
-			Shutdown: self.shutdown,
+			Shutdown: self.patrol.shutdown,
 		}
 		self.history = append(self.history, h)
 		// unset previous started so we don't create duplicate histories
@@ -111,11 +105,6 @@ func (self *Service) close() {
 	}
 }
 func (self *Service) startService() error {
-	// we are ASSUMING our service isn't started!!!
-	// this function should only ever be called by tick()
-	// we gotta lock and defer to set history
-	self.mu.Lock()
-	defer self.mu.Unlock()
 	// close service
 	self.close()
 	now := time.Now()
@@ -136,10 +125,6 @@ func (self *Service) startService() error {
 	return nil
 }
 func (self *Service) isServiceRunning() error {
-	// if we determine a process is NOT running we will set history - we will NOT attempt to restart anything!
-	// lock and defer incase we have to set history!
-	self.mu.Lock()
-	defer self.mu.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	var cmd *exec.Cmd
