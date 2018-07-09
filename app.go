@@ -360,8 +360,6 @@ func (self *App) isAppRunning() error {
 	}
 	// we have to ping our PID to determine if we're running
 	// this function is only used by APP_KEEPALIVE_PID_APP
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-	defer cancel()
 	pid, err := self.getPID()
 	if err != nil {
 		// failed to find PID
@@ -371,8 +369,16 @@ func (self *App) isAppRunning() error {
 	}
 	// TODO: we should add PID verification here
 	// either before or after we signal to kill, it's unsure how this will work
-	cmd := exec.CommandContext(ctx, "kill", "-0", fmt.Sprintf("%d", pid))
-	if err := cmd.Run(); err != nil {
+	process, err := os.FindProcess(int(pid))
+	if err != nil {
+		// NOT running!
+		// close app
+		self.close()
+		return err
+	}
+	// kill -0 PID
+	err = process.Signal(syscall.Signal(0))
+	if err != nil {
 		// NOT running!
 		// close app
 		self.close()
@@ -427,7 +433,7 @@ func (self *App) getPID() (
 		return 0, ERR_APP_PIDFILE_INVALID
 	}
 	self.pid = uint32(pid)
-	return uint32(pid), nil
+	return self.pid, nil
 }
 func (self *App) GetPID() uint32 {
 	// this may not be the latest PID but it's the latest PID we're aware of
