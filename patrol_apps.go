@@ -15,7 +15,7 @@ func (self *Patrol) runApps() {
 		go func(id string, app *App) {
 			app.mu.Lock()
 			defer func() {
-				defer app.mu.Unlock()
+				app.mu.Unlock()
 				wg.Done()
 			}()
 			if app.disabled || shutdown {

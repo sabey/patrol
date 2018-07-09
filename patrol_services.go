@@ -15,7 +15,7 @@ func (self *Patrol) runServices() {
 		go func(id string, service *Service) {
 			service.mu.Lock()
 			defer func() {
-				defer service.mu.Unlock()
+				service.mu.Unlock()
 				wg.Done()
 			}()
 			if service.disabled || shutdown {
