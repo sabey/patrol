@@ -5,19 +5,31 @@ import (
 )
 
 var (
-	ERR_SERVICE_EMPTY              = fmt.Errorf("Service was empty")
-	ERR_SERVICE_MAXLENGTH          = fmt.Errorf("Service was longer than 63 bytes")
-	ERR_SERVICE_NAME_EMPTY         = fmt.Errorf("Service Name was empty")
-	ERR_SERVICE_NAME_MAXLENGTH     = fmt.Errorf("Service Name was longer than 255 bytes")
-	ERR_SERVICE_MANAGEMENT_INVALID = fmt.Errorf("Service Management was invalid, please select a method!")
-	ERR_SERVICE_INVALID_EXITCODE   = fmt.Errorf("Service contained an Invalid Exit Code")
-	ERR_SERVICE_DUPLICATE_EXITCODE = fmt.Errorf("Service contained a Duplicate Exit Code")
+	ERR_SERVICE_EMPTY                     = fmt.Errorf("Service was empty")
+	ERR_SERVICE_MAXLENGTH                 = fmt.Errorf("Service was longer than 63 bytes")
+	ERR_SERVICE_NAME_EMPTY                = fmt.Errorf("Service Name was empty")
+	ERR_SERVICE_NAME_MAXLENGTH            = fmt.Errorf("Service Name was longer than 255 bytes")
+	ERR_SERVICE_MANAGEMENT_INVALID        = fmt.Errorf("Service Management was invalid, please select a method!")
+	ERR_SERVICE_MANAGEMENT_START_INVALID  = fmt.Errorf("Service Management Start was invalid, please select a method!")
+	ERR_SERVICE_MANAGEMENT_STATUS_INVALID = fmt.Errorf("Service Management Status was invalid, please select a method!")
+	ERR_SERVICE_MANAGEMENT_STOP_INVALID   = fmt.Errorf("Service Management Stop was invalid, please select a method!")
+	ERR_SERVICE_INVALID_EXITCODE          = fmt.Errorf("Service contained an Invalid Exit Code")
+	ERR_SERVICE_DUPLICATE_EXITCODE        = fmt.Errorf("Service contained a Duplicate Exit Code")
 )
 
 type ConfigService struct {
 	// management method
 	// this is required! you must choose, it can not default to 0, we can't make assumptions on how your service may function
-	Management int `json:"management,omitempty"`
+	// we're not going to have a single management method, we're going to use different ones for start/status/stop
+	// IF management is set, it will take priority over the other methods
+	Management       int `json:"management,omitempty"`
+	ManagementStart  int `json:"management-start,omitempty"`
+	ManagementStatus int `json:"management-status,omitempty"`
+	ManagementStop   int `json:"management-stop,omitempty"`
+	// we're going to allow different start/status/stop parameters to be overwritten, if they are empty they will use the default value
+	ManagementStartParameter  string `json:"management-start-parameter,omitempty"`
+	ManagementStatusParameter string `json:"management-status-parameter,omitempty"`
+	ManagementStopParameter   string `json:"management-stop-parameter,omitempty"`
 	// name is only used for the HTTP admin gui, it can contain anything but must be less than 255 bytes in length
 	Name string `json:"name,omitempty"`
 	// Service is the name of the executable and/or parameter
@@ -69,7 +81,13 @@ func (self *ConfigService) Clone() *ConfigService {
 		return nil
 	}
 	config := &ConfigService{
-		Management:         self.Management,
+		Management:                self.Management,
+		ManagementStart:           self.ManagementStart,
+		ManagementStatus:          self.ManagementStatus,
+		ManagementStop:            self.ManagementStop,
+		ManagementStartParameter:  self.ManagementStartParameter,
+		ManagementStatusParameter: self.ManagementStatusParameter,
+		ManagementStopParameter:   self.ManagementStopParameter,
 		Name:               self.Name,
 		Service:            self.Service,
 		IgnoreExitCodes:    make([]uint8, 0, len(self.IgnoreExitCodes)),
@@ -87,10 +105,36 @@ func (self *ConfigService) Clone() *ConfigService {
 	return config
 }
 func (self *ConfigService) Validate() error {
-	if self.Management < SERVICE_MANAGEMENT_SERVICE ||
-		self.Management > SERVICE_MANAGEMENT_INITD {
-		// unknown management value
-		return ERR_SERVICE_MANAGEMENT_INVALID
+	if self.Management == 0 &&
+		(self.ManagementStart > 0 ||
+			self.ManagementStatus > 0 ||
+			self.ManagementStop > 0) {
+		// use specific management values
+		// start
+		if self.ManagementStart < SERVICE_MANAGEMENT_SERVICE ||
+			self.ManagementStart > SERVICE_MANAGEMENT_INITD {
+			// unknown management value
+			return ERR_SERVICE_MANAGEMENT_START_INVALID
+		}
+		// status
+		if self.ManagementStatus < SERVICE_MANAGEMENT_SERVICE ||
+			self.ManagementStatus > SERVICE_MANAGEMENT_INITD {
+			// unknown management value
+			return ERR_SERVICE_MANAGEMENT_STATUS_INVALID
+		}
+		// stop
+		if self.ManagementStop < SERVICE_MANAGEMENT_SERVICE ||
+			self.ManagementStop > SERVICE_MANAGEMENT_INITD {
+			// unknown management value
+			return ERR_SERVICE_MANAGEMENT_STOP_INVALID
+		}
+	} else {
+		// use master value
+		if self.Management < SERVICE_MANAGEMENT_SERVICE ||
+			self.Management > SERVICE_MANAGEMENT_INITD {
+			// unknown management value
+			return ERR_SERVICE_MANAGEMENT_INVALID
+		}
 	}
 	if self.Service == "" {
 		return ERR_SERVICE_EMPTY
@@ -118,4 +162,40 @@ func (self *ConfigService) Validate() error {
 		exists[ec] = struct{}{}
 	}
 	return nil
+}
+func (self *ConfigService) GetManagementStart() int {
+	if self.Management > 0 {
+		return self.Management
+	}
+	return self.ManagementStart
+}
+func (self *ConfigService) GetManagementStatus() int {
+	if self.Management > 0 {
+		return self.Management
+	}
+	return self.ManagementStatus
+}
+func (self *ConfigService) GetManagementStop() int {
+	if self.Management > 0 {
+		return self.Management
+	}
+	return self.ManagementStop
+}
+func (self *ConfigService) GetManagementStartParameter() string {
+	if self.ManagementStartParameter == "" {
+		return "start"
+	}
+	return self.ManagementStartParameter
+}
+func (self *ConfigService) GetManagementStatusParameter() string {
+	if self.ManagementStatusParameter == "" {
+		return "status"
+	}
+	return self.ManagementStatusParameter
+}
+func (self *ConfigService) GetManagementStopParameter() string {
+	if self.ManagementStopParameter == "" {
+		return "stop"
+	}
+	return self.ManagementStopParameter
 }

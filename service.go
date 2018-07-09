@@ -111,10 +111,12 @@ func (self *Service) startService() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
 	defer cancel()
 	var cmd *exec.Cmd
-	if self.config.Management == SERVICE_MANAGEMENT_SERVICE {
-		cmd = exec.CommandContext(ctx, "service", self.config.Service, "start")
+	m := self.config.GetManagementStart()
+	p := self.config.GetManagementStartParameter()
+	if m == SERVICE_MANAGEMENT_SERVICE {
+		cmd = exec.CommandContext(ctx, "service", self.config.Service, p)
 	} else {
-		cmd = exec.CommandContext(ctx, fmt.Sprintf("/etc/init.d/%s", self.config.Service), "start")
+		cmd = exec.CommandContext(ctx, fmt.Sprintf("/etc/init.d/%s", self.config.Service), p)
 	}
 	if err := cmd.Run(); err != nil {
 		// failed to start
@@ -128,10 +130,12 @@ func (self *Service) isServiceRunning() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 	var cmd *exec.Cmd
-	if self.config.Management == SERVICE_MANAGEMENT_SERVICE {
-		cmd = exec.CommandContext(ctx, "service", self.config.Service, "status")
+	m := self.config.GetManagementStatus()
+	p := self.config.GetManagementStatusParameter()
+	if m == SERVICE_MANAGEMENT_SERVICE {
+		cmd = exec.CommandContext(ctx, "service", self.config.Service, p)
 	} else {
-		cmd = exec.CommandContext(ctx, fmt.Sprintf("/etc/init.d/%s", self.config.Service), "status")
+		cmd = exec.CommandContext(ctx, fmt.Sprintf("/etc/init.d/%s", self.config.Service), p)
 	}
 	if err := cmd.Run(); err != nil {
 		// NOT running!
@@ -150,10 +154,12 @@ func (self *Service) stopService() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
 	defer cancel()
 	var cmd *exec.Cmd
-	if self.config.Management == SERVICE_MANAGEMENT_SERVICE {
-		cmd = exec.CommandContext(ctx, "service", self.config.Service, "stop")
+	m := self.config.GetManagementStop()
+	p := self.config.GetManagementStopParameter()
+	if m == SERVICE_MANAGEMENT_SERVICE {
+		cmd = exec.CommandContext(ctx, "service", self.config.Service, p)
 	} else {
-		cmd = exec.CommandContext(ctx, fmt.Sprintf("/etc/init.d/%s", self.config.Service), "stop")
+		cmd = exec.CommandContext(ctx, fmt.Sprintf("/etc/init.d/%s", self.config.Service), p)
 	}
 	if err := cmd.Run(); err != nil {
 		// failed to stop
