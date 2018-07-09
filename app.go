@@ -3,6 +3,7 @@ package patrol
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -22,10 +23,10 @@ const (
 	// ping is used by APP_KEEPALIVE_HTTP and APP_KEEPALIVE_UDP
 	APP_PING_EVERY = time.Second * 30
 	// environment keys
-	APP_ENV_KEEPALIVE    = `PATROL_KEEPALIVE`
-	APP_ENV_PID_PATH     = `PATROL_PID`
-	APP_ENV_HTTP_ADDRESS = `PATROL_HTTP_ADDRESS`
-	APP_ENV_UDP_ADDRESS  = `PATROL_UDP_ADDRESS`
+	APP_ENV_KEEPALIVE   = `PATROL_KEEPALIVE`
+	APP_ENV_PID         = `PATROL_PID`
+	APP_ENV_LISTEN_HTTP = `PATROL_HTTP`
+	APP_ENV_LISTEN_UDP  = `PATROL_UDP`
 )
 
 // there are multiple methods of process management, none of them are perfect! they all have their tradeoffs!!!
@@ -264,11 +265,15 @@ func (self *App) startApp() error {
 	if self.config.KeepAlive == APP_KEEPALIVE_PID_PATROL ||
 		self.config.KeepAlive == APP_KEEPALIVE_PID_APP {
 		// pid path
-		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", APP_ENV_PID_PATH, filepath.Clean(self.config.WorkingDirectory+"/"+self.config.PIDPath)))
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", APP_ENV_PID, filepath.Clean(self.config.WorkingDirectory+"/"+self.config.PIDPath)))
 	} else if self.config.KeepAlive == APP_KEEPALIVE_HTTP {
-		// http address
+		// http address - add listeners
+		bs, _ := json.Marshal(self.patrol.config.ListenHTTP)
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", APP_ENV_LISTEN_HTTP, bs))
 	} else if self.config.KeepAlive == APP_KEEPALIVE_UDP {
-		// udp address
+		// udp address - add listeners
+		bs, _ := json.Marshal(self.patrol.config.ListenUDP)
+		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", APP_ENV_LISTEN_UDP, bs))
 	}
 	// STD in/out/err
 	if self.config.Stdin != nil {

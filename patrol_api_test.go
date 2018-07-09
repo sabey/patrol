@@ -39,7 +39,29 @@ func TestAPI(t *testing.T) {
 			},
 		},
 	}
+	// test http listeners
 	patrol, err := CreatePatrol(config)
+	unittest.Equals(t, err, ERR_LISTEN_HTTP_EMPTY)
+	unittest.IsNil(t, patrol)
+
+	// test udp listeners
+	config.Apps["http"].KeepAlive = APP_KEEPALIVE_UDP
+	patrol, err = CreatePatrol(config)
+	unittest.Equals(t, err, ERR_LISTEN_UDP_EMPTY)
+	unittest.IsNil(t, patrol)
+
+	// set udp listener
+	config.ListenUDP = []string{":0"} // this doesn't matter we aren't using it
+	patrol, err = CreatePatrol(config)
+	unittest.IsNil(t, err)
+	unittest.NotNil(t, patrol)
+	// unset
+	config.ListenUDP = nil
+
+	// switch back to http
+	config.Apps["http"].KeepAlive = APP_KEEPALIVE_HTTP
+	config.ListenHTTP = []string{":0"} // this doesn't matter we aren't using it
+	patrol, err = CreatePatrol(config)
 	unittest.IsNil(t, err)
 	unittest.NotNil(t, patrol)
 

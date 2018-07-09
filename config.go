@@ -18,6 +18,8 @@ var (
 	ERR_SERVICES_SERVICE_NIL    = fmt.Errorf("Service was nil")
 	ERR_APP_LABEL_DUPLICATE     = fmt.Errorf("Duplicate App Label")
 	ERR_SERVICE_LABEL_DUPLICATE = fmt.Errorf("Duplicate Service Label")
+	ERR_LISTEN_HTTP_EMPTY       = fmt.Errorf("HTTP Listeners were empty, we required one to exist!")
+	ERR_LISTEN_UDP_EMPTY        = fmt.Errorf("UDP Listeners were empty, we required one to exist!")
 )
 
 func LoadConfig(
@@ -70,6 +72,16 @@ type Config struct {
 	// used for time.Format()
 	// empty defaults to time.String()
 	Timestamp string `json:"json-timestamp,omitempty"`
+	// we have to have extra configs for our list of listeners - we'll allow multiple ones to exist
+	// we won't create any listeners of our own in THIS package!
+	// if a HTTP or UDP listener is required, the only time one would be created is in our subpackage `patrol`
+	// we would only create one if no other listener was listed
+	// once created they will be appended to our listen list
+	// https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers
+	// by default we will listen on :8421 for HTTP and :1248 for UDP
+	// neither seem to be used anywhere, good enough for us an easy to remember
+	ListenHTTP []string `json:"listen-http,omitempty"`
+	ListenUDP  []string `json:"listen-udp,omitempty"`
 }
 
 func (self *Config) IsValid() bool {
@@ -83,17 +95,25 @@ func (self *Config) Clone() *Config {
 		return nil
 	}
 	config := &Config{
-		Apps:      make(map[string]*ConfigApp),
-		Services:  make(map[string]*ConfigService),
-		TickEvery: self.TickEvery,
-		History:   self.History,
-		Timestamp: self.Timestamp,
+		Apps:       make(map[string]*ConfigApp),
+		Services:   make(map[string]*ConfigService),
+		TickEvery:  self.TickEvery,
+		History:    self.History,
+		Timestamp:  self.Timestamp,
+		ListenHTTP: make([]string, 0, len(self.ListenHTTP)),
+		ListenUDP:  make([]string, 0, len(self.ListenUDP)),
 	}
 	for k, v := range self.Apps {
 		config.Apps[k] = v.Clone()
 	}
 	for k, v := range self.Services {
 		config.Services[k] = v.Clone()
+	}
+	for _, l := range self.ListenHTTP {
+		config.ListenHTTP = append(config.ListenHTTP, l)
+	}
+	for _, l := range self.ListenUDP {
+		config.ListenUDP = append(config.ListenUDP, l)
 	}
 	return config
 }
@@ -109,6 +129,8 @@ func (self *Config) Validate() error {
 	// this way we can rely in the future on IDs being lowercase
 	apps := make(map[string]*ConfigApp)
 	// check apps
+	http := false
+	udp := false
 	for id, app := range self.Apps {
 		if id == "" {
 			return ERR_APPS_KEY_EMPTY
@@ -131,6 +153,19 @@ func (self *Config) Validate() error {
 			return ERR_APP_LABEL_DUPLICATE
 		}
 		apps[id] = app
+		if app.KeepAlive == APP_KEEPALIVE_HTTP {
+			http = true
+		} else if app.KeepAlive == APP_KEEPALIVE_UDP {
+			udp = true
+		}
+	}
+	if http && len(self.ListenHTTP) == 0 {
+		// no http servers
+		return ERR_LISTEN_HTTP_EMPTY
+	}
+	if udp && len(self.ListenUDP) == 0 {
+		// no udp servers
+		return ERR_LISTEN_UDP_EMPTY
 	}
 	// overwrite apps
 	self.Apps = apps
