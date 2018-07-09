@@ -7,6 +7,9 @@ import (
 
 func (self *Patrol) runApps() {
 	var wg sync.WaitGroup
+	self.mu.RLock()
+	shutdown := self.shutdown
+	self.mu.RUnlock()
 	for id, app := range self.apps {
 		wg.Add(1)
 		go func(id string, app *App) {
@@ -15,7 +18,7 @@ func (self *Patrol) runApps() {
 				defer app.mu.Unlock()
 				wg.Done()
 			}()
-			if app.disabled || self.shutdown {
+			if app.disabled || shutdown {
 				// this is disabled
 				// check if we're running, if we are we need to shutdown
 				if err := app.isAppRunning(); err == nil {
