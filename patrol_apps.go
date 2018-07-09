@@ -22,15 +22,21 @@ func (self *Patrol) runApps() {
 				// this is disabled
 				// check if we're running, if we are we need to shutdown
 				if err := app.isAppRunning(); err == nil {
+					stop := false
 					if self.shutdown {
 						// Patrol is shutting down
 						log.Printf("./patrol.runApps(): App ID: %s is running AND shutting down! - Signalling!\n", id)
-					} else {
+						stop = true
+					}
+					if !stop && app.disabled {
 						// app disabled
 						log.Printf("./patrol.runApps(): App ID: %s is running AND disabled! - Signalling!\n", id)
+						stop = true
 					}
-					// signal app to stop
-					app.signalStop()
+					if stop {
+						// signal app to stop
+						app.signalStop()
+					}
 				}
 			} else {
 				// enabled

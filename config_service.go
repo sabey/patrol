@@ -29,6 +29,9 @@ type ConfigService struct {
 	// the only way to enable this once loaded is to use an API or restart Patrol
 	// if Disabled is true the Service MAY be running, we will just avoid watching it!
 	Disabled bool `json:"disabled,omitempty"`
+	// should we stop this service once patrol is shutting down?
+	// if patrol crashes we won't be able to garauntee this is stopped
+	StopOnShutdown bool `json:"stop-on-shutdown,omitempty"`
 	// these are NOT supported with JSON for obvious reasons
 	// these will have to be set manually!!!
 	// Triggers
@@ -71,6 +74,7 @@ func (self *ConfigService) Clone() *ConfigService {
 		Service:            self.Service,
 		IgnoreExitCodes:    make([]uint8, 0, len(self.IgnoreExitCodes)),
 		Disabled:           self.Disabled,
+		StopOnShutdown:     self.StopOnShutdown,
 		TriggerStart:       self.TriggerStart,
 		TriggerStarted:     self.TriggerStarted,
 		TriggerStartFailed: self.TriggerStartFailed,

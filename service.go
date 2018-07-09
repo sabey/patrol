@@ -146,3 +146,21 @@ func (self *Service) isServiceRunning() error {
 	}
 	return nil
 }
+func (self *Service) stopService() error {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+	defer cancel()
+	var cmd *exec.Cmd
+	if self.config.Management == SERVICE_MANAGEMENT_SERVICE {
+		cmd = exec.CommandContext(ctx, "service", self.config.Service, "stop")
+	} else {
+		cmd = exec.CommandContext(ctx, fmt.Sprintf("/etc/init.d/%s", self.config.Service), "stop")
+	}
+	if err := cmd.Run(); err != nil {
+		// failed to stop
+		return err
+	}
+	// stopped!
+	// close service
+	self.close()
+	return nil
+}

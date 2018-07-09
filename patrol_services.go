@@ -19,11 +19,34 @@ func (self *Patrol) runServices() {
 				wg.Done()
 			}()
 			if service.disabled || shutdown {
-				// this is disabled
+				// we're either disabled or shutting down
 				// check if we're running, if we are we need to shutdown
 				if err := service.isServiceRunning(); err == nil {
-					log.Printf("./patrol.runServices(): Service ID: %s is running AND disabled!\n", id)
 					// shut it down
+					stop := false
+					if self.shutdown {
+						// Patrol is shutting down
+						if service.config.StopOnShutdown {
+							// service should be stopped on shutdown
+							log.Printf("./patrol.runServices(): Service ID: %s is running AND shutting down! - Stopping!\n", id)
+							stop = true
+						} // ignore
+					}
+					// check if we're disabled
+					if !stop && service.disabled {
+						// service disabled
+						log.Printf("./patrol.runServices(): Service ID: %s is running AND disabled! - Stopping!\n", id)
+						stop = true
+					}
+					if stop {
+						// there's no triggers for this
+						// once a service is closed we will use that as a trigger
+						if err := service.stopService(); err != nil {
+							log.Printf("./patrol.runServices(): Service ID: %s failed to stop: \"%s\"\n", id, err)
+						} else {
+							log.Printf("./patrol.runServices(): Service ID: %s stopped\n", id)
+						}
+					}
 				}
 			} else {
 				// enabled
