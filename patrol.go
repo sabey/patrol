@@ -39,6 +39,7 @@ func CreatePatrol(
 			patrol:   p,
 			config:   app,
 			disabled: app.Disabled,
+			keyvalue: make(map[string]interface{}),
 		}
 	}
 	for id, service := range config.Services {
@@ -47,6 +48,7 @@ func CreatePatrol(
 			patrol:   p,
 			config:   service,
 			disabled: service.Disabled,
+			keyvalue: make(map[string]interface{}),
 		}
 	}
 	return p, nil

@@ -49,6 +49,8 @@ type ConfigApp struct {
 	// the only way to enable this once loaded is to use an API or restart Patrol
 	// if Disabled is true the App MAY be running, we will just avoid watching it!
 	Disabled bool `json:"disabled,omitempty"`
+	// clear keyvalue on new instance?
+	KeyValueClear bool `json:"keyvalue-clear,omitempty"`
 	////////////
 	// os.Cmd //
 	////////////
@@ -172,6 +174,7 @@ func (self *ConfigApp) Clone() *ConfigApp {
 		PIDPath:            self.PIDPath,
 		PIDVerify:          self.PIDVerify,
 		Disabled:           self.Disabled,
+		KeyValueClear:      self.KeyValueClear,
 		ExecuteTimeout:     self.ExecuteTimeout,
 		Args:               make([]string, 0, len(self.Args)),
 		Env:                make([]string, 0, len(self.Env)),

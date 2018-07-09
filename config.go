@@ -67,6 +67,9 @@ type Config struct {
 	TickEvery int `json:"tick-every,omitempty"`
 	// how many records of history should we store?
 	History int `json:"history,omitempty"`
+	// used for time.Format()
+	// empty defaults to time.String()
+	Timestamp string `json:"json-timestamp,omitempty"`
 }
 
 func (self *Config) IsValid() bool {
@@ -84,6 +87,7 @@ func (self *Config) Clone() *Config {
 		Services:  make(map[string]*ConfigService),
 		TickEvery: self.TickEvery,
 		History:   self.History,
+		Timestamp: self.Timestamp,
 	}
 	for k, v := range self.Apps {
 		config.Apps[k] = v.Clone()

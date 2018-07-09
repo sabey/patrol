@@ -44,6 +44,8 @@ type ConfigService struct {
 	// should we stop this service once patrol is shutting down?
 	// if patrol crashes we won't be able to garauntee this is stopped
 	StopOnShutdown bool `json:"stop-on-shutdown,omitempty"`
+	// clear keyvalue on new instance?
+	KeyValueClear bool `json:"keyvalue-clear,omitempty"`
 	// these are NOT supported with JSON for obvious reasons
 	// these will have to be set manually!!!
 	// Triggers
@@ -93,6 +95,7 @@ func (self *ConfigService) Clone() *ConfigService {
 		IgnoreExitCodes:    make([]uint8, 0, len(self.IgnoreExitCodes)),
 		Disabled:           self.Disabled,
 		StopOnShutdown:     self.StopOnShutdown,
+		KeyValueClear:      self.KeyValueClear,
 		TriggerStart:       self.TriggerStart,
 		TriggerStarted:     self.TriggerStarted,
 		TriggerStartFailed: self.TriggerStartFailed,

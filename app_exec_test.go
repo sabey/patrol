@@ -1,6 +1,7 @@
 package patrol
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -21,7 +22,8 @@ func TestAppExecPatrolPID(t *testing.T) {
 		// this must be set or we will get an an error when saving history
 		patrol: &Patrol{
 			config: &Config{
-				History: 5,
+				History:   5,
+				Timestamp: time.RFC1123Z,
 			},
 		},
 		config: &ConfigApp{
@@ -75,9 +77,31 @@ func TestAppExecPatrolPID(t *testing.T) {
 	unittest.Equals(t, len(app.history), 1)
 	unittest.Equals(t, app.history[0].PID, pid)
 	unittest.Equals(t, app.history[0].Started.IsZero(), false)
+	unittest.Equals(t, app.history[0].LastSeen.IsZero(), true)
 	unittest.Equals(t, app.history[0].Stopped.IsZero(), false)
 	unittest.Equals(t, app.history[0].Shutdown, false)
 	unittest.Equals(t, app.history[0].ExitCode, 0)
+
+	// test timestamp marshal
+	bs1, _ := json.MarshalIndent(app.history, "", "\t")
+
+	// we can't use []interface{}{map[string]struct{}{} because when we scan over our map it isn't deterministic
+	result := []interface{}{
+		struct {
+			PID      uint32 `json:"pid,omitempty"`
+			Started  string `json:"started,omitempty"`
+			LastSeen string `json:"lastseen,omitempty"`
+			Stopped  string `json:"stopped,omitempty"`
+		}{
+			PID:      pid,
+			Started:  app.history[0].Started.Format(app.patrol.config.Timestamp),
+			LastSeen: app.history[0].LastSeen.Format(app.patrol.config.Timestamp),
+			Stopped:  app.history[0].Stopped.Format(app.patrol.config.Timestamp),
+		},
+	}
+	bs2, _ := json.MarshalIndent(result, "", "\t")
+
+	unittest.Equals(t, string(bs1), string(bs2))
 }
 func TestAppExecPatrolShutdown(t *testing.T) {
 	log.Println("TestAppExecPatrolShutdown")

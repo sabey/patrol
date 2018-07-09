@@ -68,8 +68,10 @@ type App struct {
 	id     string // we want a reference to our parent ID
 	config *ConfigApp
 	// unsafe
+	keyvalue map[string]interface{}
 	history  []*History
 	started  time.Time
+	lastseen time.Time
 	disabled bool // takes its initial value from config
 	// pid is set by all but only used by APP_KEEPALIVE_PID_APP to verify a process is running
 	// last PID we've found and verified
@@ -125,7 +127,27 @@ func (self *App) GetStarted() time.Time {
 	defer self.mu.RUnlock()
 	return self.started
 }
+func (self *App) GetLastSeen() time.Time {
+	self.mu.RLock()
+	defer self.mu.RUnlock()
+	return self.lastseen
+}
+func (self *App) GetKeyValue() map[string]interface{} {
+	self.mu.RLock()
+	defer self.mu.RUnlock()
+	return self.getKeyValue()
+}
+func (self *App) getKeyValue() map[string]interface{} {
+	// dereference
+	kv := make(map[string]interface{})
+	for k, v := range self.keyvalue {
+		kv[k] = v
+	}
+	return kv
+}
 func (self *App) GetHistory() []*History {
+	self.mu.RLock()
+	defer self.mu.RUnlock()
 	// dereference
 	history := make([]*History, 0, len(self.history))
 	for _, h := range self.history {
@@ -143,19 +165,34 @@ func (self *App) close() {
 			// we're always going to log PID even if there's a chance it doesn't exist
 			// for example if our APP controls the PID, when we ping to check if its alive, it would override PID with something incorrect
 			// pid is garaunteed to always exist for APP_KEEPALIVE_PID_PATROL
-			PID:      self.pid,
-			Started:  self.started,
-			Stopped:  time.Now(),
+			PID: self.pid,
+			Started: PatrolTimestamp{
+				Time: self.started,
+				f:    self.patrol.config.Timestamp,
+			},
+			LastSeen: PatrolTimestamp{
+				Time: self.lastseen,
+				f:    self.patrol.config.Timestamp,
+			},
+			Stopped: PatrolTimestamp{
+				Time: time.Now(),
+				f:    self.patrol.config.Timestamp,
+			},
 			Disabled: self.disabled,
 			Shutdown: self.patrol.shutdown,
 			// exit code is only garaunteed to exist for APP_KEEPALIVE_PID_PATROL
 			ExitCode: self.exit_code,
+			KeyValue: self.getKeyValue(),
 		}
 		self.history = append(self.history, h)
 		// reset values
 		self.started = time.Time{}
 		self.pid = 0
 		self.exit_code = 0
+		if self.config.KeyValueClear {
+			// clear keyvalues
+			self.keyvalue = make(map[string]interface{})
+		}
 		// call trigger in a go routine so we don't deadlock
 		if self.config.TriggerClosed != nil {
 			go self.config.TriggerClosed(self.id, self, h)
@@ -342,10 +379,12 @@ func (self *App) isAppRunning() error {
 		return err
 	}
 	// running!
+	now := time.Now()
 	if self.started.IsZero() {
 		// we need to set started since this is our first time seeing this app
-		self.started = time.Now()
+		self.started = now
 	}
+	self.lastseen = now
 	return nil
 }
 func (self *App) signalStop() {

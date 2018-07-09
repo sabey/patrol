@@ -30,8 +30,10 @@ type Service struct {
 	id     string // we want a reference to our parent ID
 	config *ConfigService
 	// unsafe
+	keyvalue map[string]interface{}
 	history  []*History
 	started  time.Time
+	lastseen time.Time
 	disabled bool // takes its initial value from config
 	mu       sync.RWMutex
 }
@@ -76,7 +78,27 @@ func (self *Service) GetStarted() time.Time {
 	defer self.mu.RUnlock()
 	return self.started
 }
+func (self *Service) GetLastSeen() time.Time {
+	self.mu.RLock()
+	defer self.mu.RUnlock()
+	return self.lastseen
+}
+func (self *Service) GetKeyValue() map[string]interface{} {
+	self.mu.RLock()
+	defer self.mu.RUnlock()
+	return self.getKeyValue()
+}
+func (self *Service) getKeyValue() map[string]interface{} {
+	// dereference
+	kv := make(map[string]interface{})
+	for k, v := range self.keyvalue {
+		kv[k] = v
+	}
+	return kv
+}
 func (self *Service) GetHistory() []*History {
+	self.mu.RLock()
+	defer self.mu.RUnlock()
 	// dereference
 	history := make([]*History, 0, len(self.history))
 	for _, h := range self.history {
@@ -91,13 +113,28 @@ func (self *Service) close() {
 			self.history = self.history[1:]
 		}
 		h := &History{
-			Started:  self.started,
-			Stopped:  time.Now(),
+			Started: PatrolTimestamp{
+				Time: self.started,
+				f:    self.patrol.config.Timestamp,
+			},
+			LastSeen: PatrolTimestamp{
+				Time: self.lastseen,
+				f:    self.patrol.config.Timestamp,
+			},
+			Stopped: PatrolTimestamp{
+				Time: time.Now(),
+				f:    self.patrol.config.Timestamp,
+			},
 			Shutdown: self.patrol.shutdown,
+			KeyValue: self.getKeyValue(),
 		}
 		self.history = append(self.history, h)
-		// unset previous started so we don't create duplicate histories
+		// reset values
 		self.started = time.Time{}
+		if self.config.KeyValueClear {
+			// clear keyvalues
+			self.keyvalue = make(map[string]interface{})
+		}
 		// call trigger in a go routine so we don't deadlock
 		if self.config.TriggerClosed != nil {
 			go self.config.TriggerClosed(self.id, self, h)
@@ -144,10 +181,12 @@ func (self *Service) isServiceRunning() error {
 		return err
 	}
 	// running!
+	now := time.Now()
 	if self.started.IsZero() {
 		// we need to set started since this is our first time seeing this service
-		self.started = time.Now()
+		self.started = now
 	}
+	self.lastseen = now
 	return nil
 }
 func (self *Service) stopService() error {
