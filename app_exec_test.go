@@ -228,6 +228,93 @@ func TestAppExecPatrolDisable(t *testing.T) {
 	// check that we were notified - SIGUSR2
 	unittest.Equals(t, app.history[0].ExitCode, 12)
 }
+func TestAppExecPatrolLogDirectory(t *testing.T) {
+	log.Println("TestAppExecPatrolLogDirectory")
+
+	wd, err := os.Getwd()
+	unittest.IsNil(t, err)
+	unittest.Equals(t, wd != "", true)
+
+	app := &App{
+		// this must be set or we will get an an error when saving history
+		patrol: &Patrol{
+			config: &Config{
+				History: 5,
+			},
+		},
+		config: &ConfigApp{
+			Name:             "testapp",
+			KeepAlive:        APP_KEEPALIVE_PID_PATROL,
+			WorkingDirectory: wd + "/unittest/testapp",
+			PIDPath:          "testapp.pid",
+			LogDirectory:     "logs",
+			Binary:           "testapp",
+			// we're NOTgoing to hijack our stderr and stdout!!!!
+		},
+	}
+
+	// this will fail if testapp is somehow running
+	// testapp has a self destruct function, it should be about 30 seconds
+	unittest.NotNil(t, app.isAppRunning())
+	unittest.IsNil(t, app.startApp())
+	// we have to wait a second or two for Start() to run AND THEN have testapp write our PID to file
+	// if we do not wait testapp could run and not yet write PID
+	fmt.Println("waiting for app")
+	<-time.After(time.Second * 3)
+	unittest.IsNil(t, app.isAppRunning())
+	fmt.Println("waited for app")
+
+	// set disabled
+	app.Disable()
+	// save pid
+	pid := app.GetPID()
+	fmt.Printf("signalling app PID: %d\n", pid)
+	app.signalStop()
+
+	// wait for our process to be killed
+	fmt.Println("waiting for app to be killed")
+	<-time.After(time.Second * 2)
+	fmt.Println("app closed")
+	// check that our process is dead
+	unittest.NotNil(t, app.isAppRunning())
+	// check our history
+
+	unittest.Equals(t, len(app.history), 1)
+	unittest.Equals(t, app.history[0].PID, pid)
+	unittest.Equals(t, app.history[0].Started.IsZero(), false)
+	unittest.Equals(t, app.history[0].Stopped.IsZero(), false)
+	unittest.Equals(t, app.history[0].Disabled, true)
+	unittest.Equals(t, app.history[0].Shutdown, false)
+	// check that we were notified - SIGUSR2
+	unittest.Equals(t, app.history[0].ExitCode, 12)
+
+	// verify our logs exist
+
+	// stdout
+	f1, err := os.Open(fmt.Sprintf("%s/%d.stdout.log", app.logDir(), app.history[0].Started.UnixNano()))
+	unittest.IsNil(t, err)
+	unittest.NotNil(t, f1)
+	// read 2 bytes
+	bs := make([]byte, 2)
+	n, err := f1.Read(bs)
+	unittest.IsNil(t, err)
+	unittest.Equals(t, n, 2)
+	unittest.Equals(t, len(bs), 2)
+	// close
+	unittest.IsNil(t, f1.Close())
+	// stderr
+	f2, err := os.Open(fmt.Sprintf("%s/%d.stderr.log", app.logDir(), app.history[0].Started.UnixNano()))
+	unittest.IsNil(t, err)
+	unittest.NotNil(t, f2)
+	// read 2 bytes
+	bs = make([]byte, 2)
+	n, err = f2.Read(bs)
+	unittest.IsNil(t, err)
+	unittest.Equals(t, n, 2)
+	unittest.Equals(t, len(bs), 2)
+	// close
+	unittest.IsNil(t, f2.Close())
+}
 func TestAppExecAppPID(t *testing.T) {
 	log.Println("TestAppExecAppPID")
 

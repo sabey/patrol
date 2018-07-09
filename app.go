@@ -5,10 +5,12 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -254,9 +256,49 @@ func (self *App) startApp() error {
 	}
 	if self.config.Stdout != nil {
 		cmd.Stdout = self.config.Stdout
+	} else {
+		// we need to create a stdout file
+		// create an ordered log directory
+		// this is the exact same as `mkdir -p`
+		ld := self.logDir()
+		err := os.MkdirAll(ld, os.ModePerm)
+		if err != nil {
+			log.Printf("./patrol.startApp(): App ID: %s Stdout failed to MkdirAll: \"%s\" Err: \"%s\"\n", self.id, ld, err)
+			return err
+		}
+		// use now as our unique key
+		fn := fmt.Sprintf("%s/%d.stdout.log", ld, now.UnixNano())
+		cmd.Stdout, err = OpenFile(fn)
+		if err != nil {
+			log.Printf("./patrol.startApp(): App ID: %s Stdout failed to OpenFile: \"%s\" Err: \"%s\"\n", self.id, fn, err)
+			return err
+		}
+		// we CAN NOT defer close this file!!!
+		// we are passing this file handler to the app we are executing
+		// our executed app will handle closing this file descriptor on close
 	}
 	if self.config.Stderr != nil {
 		cmd.Stderr = self.config.Stderr
+	} else {
+		// we need to create a stderr file
+		// create an ordered log directory
+		// this is the exact same as `mkdir -p`
+		ld := self.logDir()
+		err := os.MkdirAll(ld, os.ModePerm)
+		if err != nil {
+			log.Printf("./patrol.startApp(): App ID: %s Stderr failed to MkdirAll: \"%s\" Err: \"%s\"\n", self.id, ld, err)
+			return err
+		}
+		// use now as our unique key
+		fn := fmt.Sprintf("%s/%d.stderr.log", ld, now.UnixNano())
+		cmd.Stderr, err = OpenFile(fn)
+		if err != nil {
+			log.Printf("./patrol.startApp(): App ID: %s Stderr failed to OpenFile: \"%s\" Err: \"%s\"\n", self.id, fn, err)
+			return err
+		}
+		// we CAN NOT defer close this file!!!
+		// we are passing this file handler to the app we are executing
+		// our executed app will handle closing this file descriptor on close
 	}
 	// extra files
 	if self.config.ExtraFiles != nil {
@@ -440,4 +482,17 @@ func (self *App) GetPID() uint32 {
 	self.mu.RLock()
 	defer self.mu.RUnlock()
 	return self.pid
+}
+func (self *App) logDir() string {
+	y, m, d := time.Now().Date()
+	return filepath.Clean(
+		fmt.Sprintf(
+			"%s/%s/%d/%s/%d",
+			self.config.WorkingDirectory,
+			self.config.LogDirectory,
+			y,
+			strings.ToLower(m.String()),
+			d,
+		),
+	)
 }
