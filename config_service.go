@@ -49,6 +49,9 @@ type ConfigService struct {
 	// these are NOT supported with JSON for obvious reasons
 	// these will have to be set manually!!!
 	// Triggers
+	// we're going to allow our Start function to overwrite if our Service is Disabled
+	// this will be just incase we want to hold a disabled state outside of this service, such as in a database, just incase we crash
+	// we'll check the value of Service.disabled on return
 	TriggerStart func(
 		id string,
 		service *Service,

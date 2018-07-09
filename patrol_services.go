@@ -51,12 +51,22 @@ func (self *Patrol) runServices() {
 			} else {
 				// enabled
 				if err := service.isServiceRunning(); err != nil {
-					log.Printf("./patrol.runServices(): Service ID: %s is not running: \"%s\"\n", id, err)
 					// call start trigger
 					if service.config.TriggerStart != nil {
-						// use goroutine to avoid deadlock
-						go service.config.TriggerStart(id, service)
+						// we're going to temporarily unlock so that we can check our trigger start state externally
+						// we're doing this to avoid a deadlock
+						// the upside is that the state of our Service can't be changed externally in any way to mess up our logic
+						service.mu.Unlock()
+						service.config.TriggerStart(id, service)
+						// and relock since we've deferred
+						service.mu.Lock()
+						if service.disabled {
+							// we can't run this Service, we've disabled it externally
+							return
+						}
+						// run!
 					}
+					log.Printf("./patrol.runServices(): Service ID: %s is not running: \"%s\"\n", id, err)
 					if err := service.startService(); err != nil {
 						log.Printf("./patrol.runServices(): Service ID: %s failed to start: \"%s\"\n", id, err)
 						// call start failed trigger

@@ -41,12 +41,22 @@ func (self *Patrol) runApps() {
 			} else {
 				// enabled
 				if err := app.isAppRunning(); err != nil {
-					log.Printf("./patrol.runApps(): App ID: %s is not running: \"%s\"\n", id, err)
 					// call start trigger
 					if app.config.TriggerStart != nil {
-						// use goroutine to avoid deadlock
-						go app.config.TriggerStart(id, app)
+						// we're going to temporarily unlock so that we can check our trigger start state externally
+						// we're doing this to avoid a deadlock
+						// the upside is that the state of our App can't be changed externally in any way to mess up our logic
+						app.mu.Unlock()
+						app.config.TriggerStart(id, app)
+						// and relock since we've deferred
+						app.mu.Lock()
+						if app.disabled {
+							// we can't run this App, we've disabled it externally
+							return
+						}
+						// run!
 					}
+					log.Printf("./patrol.runApps(): App ID: %s is not running: \"%s\"\n", id, err)
 					if err := app.startApp(); err != nil {
 						log.Printf("./patrol.runApps(): App ID: %s failed to start: \"%s\"\n", id, err)
 						// call start failed trigger

@@ -147,6 +147,26 @@ func (self *App) getKeyValue() map[string]interface{} {
 	}
 	return kv
 }
+func (self *App) SetKeyValue(
+	kv map[string]interface{},
+) {
+	self.mu.Lock()
+	for k, v := range kv {
+		self.keyvalue[k] = v
+	}
+	self.mu.Unlock()
+}
+func (self *App) ReplaceKeyValue(
+	kv map[string]interface{},
+) {
+	self.mu.Lock()
+	self.keyvalue = make(map[string]interface{})
+	// dereference
+	for k, v := range kv {
+		self.keyvalue[k] = v
+	}
+	self.mu.Unlock()
+}
 func (self *App) GetHistory() []*History {
 	self.mu.RLock()
 	defer self.mu.RUnlock()

@@ -132,6 +132,9 @@ type ConfigApp struct {
 		app *App,
 	) []*os.File `json:"-"`
 	// Triggers
+	// we're going to allow our Start function to overwrite if our App is Disabled
+	// this will be just incase we want to hold a disabled state outside of this app, such as in a database, just incase we crash
+	// we'll check the value of App.disabled on return
 	TriggerStart func(
 		id string,
 		app *App,
