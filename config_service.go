@@ -53,23 +53,18 @@ type ConfigService struct {
 	// this will be just incase we want to hold a disabled state outside of this service, such as in a database, just incase we crash
 	// we'll check the value of Service.disabled on return
 	TriggerStart func(
-		id string,
 		service *Service,
 	) `json:"-"`
 	TriggerStarted func(
-		id string,
 		service *Service,
 	) `json:"-"`
 	TriggerStartFailed func(
-		id string,
 		service *Service,
 	) `json:"-"`
 	TriggerRunning func(
-		id string,
 		service *Service,
 	) `json:"-"`
 	TriggerClosed func(
-		id string,
 		service *Service,
 		history *History,
 	) `json:"-"`

@@ -62,7 +62,7 @@ func (self *Patrol) runApps() {
 						// we're doing this to avoid a deadlock
 						// the upside is that the state of our App can't be changed externally in any way to mess up our logic
 						app.mu.Unlock()
-						app.config.TriggerStart(id, app)
+						app.config.TriggerStart(app)
 						// and relock since we've deferred
 						app.mu.Lock()
 						if app.disabled {
@@ -77,14 +77,14 @@ func (self *Patrol) runApps() {
 						// call start failed trigger
 						if app.config.TriggerStartFailed != nil {
 							// use goroutine to avoid deadlock
-							go app.config.TriggerStartFailed(id, app)
+							go app.config.TriggerStartFailed(app)
 						}
 					} else {
 						log.Printf("./patrol.runApps(): App ID: %s started\n", id)
 						// call started trigger
 						if app.config.TriggerStarted != nil {
 							// use goroutine to avoid deadlock
-							go app.config.TriggerStarted(id, app)
+							go app.config.TriggerStarted(app)
 						}
 					}
 				} else {
@@ -93,7 +93,7 @@ func (self *Patrol) runApps() {
 					// this should be thought of a ping/noop
 					if app.config.TriggerRunning != nil {
 						// use goroutine to avoid deadlock
-						go app.config.TriggerRunning(id, app)
+						go app.config.TriggerRunning(app)
 					}
 				}
 			}

@@ -57,7 +57,7 @@ func (self *Patrol) runServices() {
 						// we're doing this to avoid a deadlock
 						// the upside is that the state of our Service can't be changed externally in any way to mess up our logic
 						service.mu.Unlock()
-						service.config.TriggerStart(id, service)
+						service.config.TriggerStart(service)
 						// and relock since we've deferred
 						service.mu.Lock()
 						if service.disabled {
@@ -72,14 +72,14 @@ func (self *Patrol) runServices() {
 						// call start failed trigger
 						if service.config.TriggerStartFailed != nil {
 							// use goroutine to avoid deadlock
-							go service.config.TriggerStartFailed(id, service)
+							go service.config.TriggerStartFailed(service)
 						}
 					} else {
 						log.Printf("./patrol.runServices(): Service ID: %s started\n", id)
 						// call started trigger
 						if service.config.TriggerStarted != nil {
 							// use goroutine to avoid deadlock
-							go service.config.TriggerStarted(id, service)
+							go service.config.TriggerStarted(service)
 						}
 					}
 				} else {
@@ -88,7 +88,7 @@ func (self *Patrol) runServices() {
 					// this should be thought of a ping/noop
 					if service.config.TriggerRunning != nil {
 						// use goroutine to avoid deadlock
-						go service.config.TriggerRunning(id, service)
+						go service.config.TriggerRunning(service)
 					}
 				}
 			}

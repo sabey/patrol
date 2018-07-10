@@ -83,12 +83,10 @@ type ConfigApp struct {
 	//
 	// extra args are appended at the very end, so they could overwrite anything that comes before
 	ExtraArgs func(
-		id string,
 		app *App,
 	) []string `json:"-"`
 	// extra env are appended at the very end, so they could overwrite anything that comes before
 	ExtraEnv func(
-		id string,
 		app *App,
 	) []string `json:"-"`
 	// Stdin, Stdout, Stderr// Stdin specifies the process's standard input.
@@ -128,7 +126,6 @@ type ConfigApp struct {
 	// this is not a slice since we may want to change it in the future
 	// std err/out/err is easier to deal with since you can wrap it anyway you want
 	ExtraFiles func(
-		id string,
 		app *App,
 	) []*os.File `json:"-"`
 	// Triggers
@@ -136,25 +133,26 @@ type ConfigApp struct {
 	// this will be just incase we want to hold a disabled state outside of this app, such as in a database, just incase we crash
 	// we'll check the value of App.disabled on return
 	TriggerStart func(
-		id string,
 		app *App,
 	) `json:"-"`
 	TriggerStarted func(
-		id string,
+		app *App,
+	) `json:"-"`
+	TriggerStartedPinged func(
 		app *App,
 	) `json:"-"`
 	TriggerStartFailed func(
-		id string,
 		app *App,
 	) `json:"-"`
 	TriggerRunning func(
-		id string,
 		app *App,
 	) `json:"-"`
 	TriggerClosed func(
-		id string,
 		app *App,
 		history *History,
+	) `json:"-"`
+	TriggerPinged func(
+		app *App,
 	) `json:"-"`
 }
 
@@ -169,30 +167,32 @@ func (self *ConfigApp) Clone() *ConfigApp {
 		return nil
 	}
 	o := &ConfigApp{
-		KeepAlive:          self.KeepAlive,
-		Name:               self.Name,
-		Binary:             self.Binary,
-		WorkingDirectory:   self.WorkingDirectory,
-		LogDirectory:       self.LogDirectory,
-		PIDPath:            self.PIDPath,
-		PIDVerify:          self.PIDVerify,
-		Disabled:           self.Disabled,
-		KeyValueClear:      self.KeyValueClear,
-		ExecuteTimeout:     self.ExecuteTimeout,
-		Args:               make([]string, 0, len(self.Args)),
-		Env:                make([]string, 0, len(self.Env)),
-		EnvParent:          self.EnvParent,
-		ExtraArgs:          self.ExtraArgs,
-		ExtraEnv:           self.ExtraEnv,
-		Stdin:              self.Stdin,
-		Stdout:             self.Stdout,
-		Stderr:             self.Stderr,
-		ExtraFiles:         self.ExtraFiles,
-		TriggerStart:       self.TriggerStart,
-		TriggerStarted:     self.TriggerStarted,
-		TriggerStartFailed: self.TriggerStartFailed,
-		TriggerRunning:     self.TriggerRunning,
-		TriggerClosed:      self.TriggerClosed,
+		KeepAlive:            self.KeepAlive,
+		Name:                 self.Name,
+		Binary:               self.Binary,
+		WorkingDirectory:     self.WorkingDirectory,
+		LogDirectory:         self.LogDirectory,
+		PIDPath:              self.PIDPath,
+		PIDVerify:            self.PIDVerify,
+		Disabled:             self.Disabled,
+		KeyValueClear:        self.KeyValueClear,
+		ExecuteTimeout:       self.ExecuteTimeout,
+		Args:                 make([]string, 0, len(self.Args)),
+		Env:                  make([]string, 0, len(self.Env)),
+		EnvParent:            self.EnvParent,
+		ExtraArgs:            self.ExtraArgs,
+		ExtraEnv:             self.ExtraEnv,
+		Stdin:                self.Stdin,
+		Stdout:               self.Stdout,
+		Stderr:               self.Stderr,
+		ExtraFiles:           self.ExtraFiles,
+		TriggerStart:         self.TriggerStart,
+		TriggerStarted:       self.TriggerStarted,
+		TriggerStartedPinged: self.TriggerStartedPinged,
+		TriggerStartFailed:   self.TriggerStartFailed,
+		TriggerRunning:       self.TriggerRunning,
+		TriggerClosed:        self.TriggerClosed,
+		TriggerPinged:        self.TriggerPinged,
 	}
 	for _, a := range self.Args {
 		o.Args = append(o.Args, a)

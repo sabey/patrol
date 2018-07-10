@@ -91,6 +91,11 @@ func (self *Patrol) GetApps() map[string]*App {
 	}
 	return apps
 }
+func (self *Patrol) GetApp(
+	key string,
+) *App {
+	return self.apps[key]
+}
 func (self *Patrol) GetServices() map[string]*Service {
 	// derefence
 	services := make(map[string]*Service)
@@ -98,6 +103,11 @@ func (self *Patrol) GetServices() map[string]*Service {
 		services[k] = v
 	}
 	return services
+}
+func (self *Patrol) GetService(
+	key string,
+) *Service {
+	return self.services[key]
 }
 func (self *Patrol) Shutdown() {
 	self.mu.Lock()

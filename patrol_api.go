@@ -57,9 +57,25 @@ func (self *Patrol) api(
 			// we need to check if we ever started this app
 			// when we initially load patrol, there's a chance we could have APp that are STILL running
 			// if they ping us and the App was never started, we have to set started and we won't restart this App!
+			//
+			// we don't want to do multiple triggers here
+			// one is good enough, either way it will both represent a ping
+			// but started ping will represent started from a ping
+			triggered := false
 			if a.started.IsZero() {
 				// app was previously started
 				a.started = a.lastseen
+				// call ping started trigger
+				if a.config.TriggerStartedPinged != nil {
+					// use goroutine to avoid deadlock
+					triggered = true
+					go a.config.TriggerStartedPinged(a)
+				}
+			}
+			// call ping trigger
+			if !triggered && a.config.TriggerPinged != nil {
+				// use goroutine to avoid deadlock
+				go a.config.TriggerPinged(a)
 			}
 		}
 		a.apiRequest(ping, request)

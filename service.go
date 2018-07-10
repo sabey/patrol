@@ -161,7 +161,7 @@ func (self *Service) close() {
 		}
 		// call trigger in a go routine so we don't deadlock
 		if self.config.TriggerClosed != nil {
-			go self.config.TriggerClosed(self.id, self, h)
+			go self.config.TriggerClosed(self, h)
 		}
 	}
 }

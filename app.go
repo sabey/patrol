@@ -223,7 +223,7 @@ func (self *App) close() {
 		}
 		// call trigger in a go routine so we don't deadlock
 		if self.config.TriggerClosed != nil {
-			go self.config.TriggerClosed(self.id, self, h)
+			go self.config.TriggerClosed(self, h)
 		}
 	}
 }
@@ -246,7 +246,7 @@ func (self *App) startApp() error {
 		cmd.Args = self.config.Args
 	}
 	if self.config.ExtraArgs != nil {
-		if a := self.config.ExtraArgs(self.id, self); len(a) > 0 {
+		if a := self.config.ExtraArgs(self); len(a) > 0 {
 			cmd.Args = append(cmd.Args, a...)
 		}
 	}
@@ -261,7 +261,7 @@ func (self *App) startApp() error {
 		cmd.Env = append(cmd.Env, self.config.Env...)
 	}
 	if self.config.ExtraEnv != nil {
-		if e := self.config.ExtraEnv(self.id, self); len(e) > 0 {
+		if e := self.config.ExtraEnv(self); len(e) > 0 {
 			cmd.Env = append(cmd.Env, e...)
 		}
 	}
@@ -333,7 +333,7 @@ func (self *App) startApp() error {
 	}
 	// extra files
 	if self.config.ExtraFiles != nil {
-		if e := self.config.ExtraFiles(self.id, self); len(e) > 0 {
+		if e := self.config.ExtraFiles(self); len(e) > 0 {
 			cmd.ExtraFiles = e
 		}
 	}
