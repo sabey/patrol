@@ -54,6 +54,13 @@ func (self *Patrol) api(
 				a.config.KeepAlive == APP_KEEPALIVE_UDP) {
 			// only HTTP and UDP can update lastseen by API
 			a.lastseen = time.Now()
+			// we need to check if we ever started this app
+			// when we initially load patrol, there's a chance we could have APp that are STILL running
+			// if they ping us and the App was never started, we have to set started and we won't restart this App!
+			if a.started.IsZero() {
+				// app was previously started
+				a.started = a.lastseen
+			}
 		}
 		a.apiRequest(ping, request)
 		return response

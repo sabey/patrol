@@ -3,13 +3,19 @@ package patrol
 import (
 	"log"
 	"sync"
+	"time"
 )
 
 func (self *Patrol) runApps() {
 	var wg sync.WaitGroup
 	self.mu.RLock()
+	// we need a copy of our initial "start" time
+	started := self.ticker_running
 	shutdown := self.shutdown
 	self.mu.RUnlock()
+	// we're not going to initially start HTTP and UDP Apps on boot
+	// there's a chance these may actually be already running, we're going to wait up to at least PingTimeout * 2
+	can_start_pingable := time.Now().After(started.Add(time.Duration(self.config.PingTimeout*2) * time.Second))
 	for id, app := range self.apps {
 		wg.Add(1)
 		go func(id string, app *App) {
@@ -41,6 +47,15 @@ func (self *Patrol) runApps() {
 			} else {
 				// enabled
 				if err := app.isAppRunning(); err != nil {
+					// check if we're pingable and if so can we start
+					if app.config.KeepAlive == APP_KEEPALIVE_HTTP ||
+						app.config.KeepAlive == APP_KEEPALIVE_UDP {
+						if !can_start_pingable {
+							// we can't start this service yet
+							log.Printf("./patrol.runApps(): App ID: %s is Pingable and can't be started yet, ignoring!\n", id)
+							return
+						}
+					}
 					// call start trigger
 					if app.config.TriggerStart != nil {
 						// we're going to temporarily unlock so that we can check our trigger start state externally
