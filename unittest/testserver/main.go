@@ -78,8 +78,7 @@ func main() {
 		log.Printf("./unittest/testserver.main(): Creating HTTP Listener: \"%s\"\n", http_listen)
 		go func() {
 			mux := http.NewServeMux()
-			mux.HandleFunc("/apps/", p.ServeHTTPApps)
-			mux.HandleFunc("/services/", p.ServeHTTPServices)
+			mux.HandleFunc("/status/", p.ServeHTTPStatus)
 			mux.HandleFunc("/api/", p.ServeHTTPAPI)
 			mux.HandleFunc("/ping/", p.ServeHTTPPing)
 			mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
@@ -88,9 +87,10 @@ func main() {
 					http.NotFound(w, req)
 					return
 				}
+				w.Header().Set("Content-Type", "text/html; charset=utf-8")
+				w.WriteHeader(200)
 				fmt.Fprintf(w, `Please use one of these endpoints:<br /><br />
-GET /apps/<br />
-GET /services/<br />
+GET /status/<br />
 GET /api/?group=(app||service)&amp;id=app<br />
 POST /api/<br />
 POST /ping/

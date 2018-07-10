@@ -16,14 +16,16 @@ func (self *Patrol) serveHTTP(
 		(!ping && !(r.Method == "POST" ||
 			r.Method == "GET")) {
 		w.WriteHeader(405)
-		bs, _ := json.Marshal(
+		bs, _ := json.MarshalIndent(
 			&API_Response{
 				Errors: []string{
 					"Invalid Method",
 				},
 			},
+			"", "\t",
 		)
 		w.Write(bs)
+		w.Write([]byte("\n"))
 		return
 	}
 	request := &API_Request{}
@@ -40,14 +42,16 @@ func (self *Patrol) serveHTTP(
 		defer r.Body.Close()
 		if err != nil {
 			w.WriteHeader(400)
-			bs, _ := json.Marshal(
+			bs, _ := json.MarshalIndent(
 				&API_Response{
 					Errors: []string{
 						"Invalid Body",
 					},
 				},
+				"", "\t",
 			)
 			w.Write(bs)
+			w.Write([]byte("\n"))
 			return
 		}
 		// unmarshal
@@ -55,14 +59,16 @@ func (self *Patrol) serveHTTP(
 		if err != nil ||
 			!request.IsValid() {
 			w.WriteHeader(400)
-			bs, _ := json.Marshal(
+			bs, _ := json.MarshalIndent(
 				&API_Response{
 					Errors: []string{
 						"Invalid Request",
 					},
 				},
+				"", "\t",
 			)
 			w.Write(bs)
+			w.Write([]byte("\n"))
 			return
 		}
 	}
@@ -70,13 +76,14 @@ func (self *Patrol) serveHTTP(
 	if ping {
 		response = self.Ping(request)
 	} else {
-		response = self.Ping(request)
+		response = self.API(request)
 	}
 	if len(response.Errors) > 0 {
 		w.WriteHeader(400)
 	} else {
 		w.WriteHeader(200)
 	}
-	bs, _ := json.Marshal(response)
+	bs, _ := json.MarshalIndent(response, "", "\t")
 	w.Write(bs)
+	w.Write([]byte("\n"))
 }

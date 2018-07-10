@@ -47,7 +47,7 @@ func (self *Patrol) api(
 		defer a.mu.Unlock()
 		// we need to process our response before we update our object
 		// we're interested in returning our previous state, since we know what our new state will be
-		response := a.apiResponse()
+		response := a.apiResponse(false)
 		// handle response
 		if ping &&
 			(a.config.KeepAlive == APP_KEEPALIVE_HTTP ||
@@ -94,7 +94,7 @@ func (self *Patrol) api(
 		defer s.mu.Unlock()
 		// we need to process our response before we update our object
 		// we're interested in returning our previous state, since we know what our new state will be
-		response := s.apiResponse()
+		response := s.apiResponse(false)
 		// handle response
 		// we can't ever update service lastseen by ping or by api
 		s.apiRequest(request)

@@ -27,13 +27,21 @@ func (self *Service) apiRequest(
 		// TODO
 	}
 }
-func (self *Service) apiResponse() *API_Response {
+func (self *Service) apiResponse(
+	status bool,
+) *API_Response {
 	result := &API_Response{
-		ID:       self.id,
-		Group:    "service",
 		Disabled: self.disabled,
-		Shutdown: self.patrol.shutdown,
 		KeyValue: self.getKeyValue(),
+	}
+	if !status {
+		// we don't need these values for individual Services
+		result.ID = self.id
+		result.Group = "service"
+		// we need to read lock patrol
+		self.patrol.mu.RLock()
+		result.Shutdown = self.patrol.shutdown
+		self.patrol.mu.RUnlock()
 	}
 	if !self.started.IsZero() {
 		result.Started = &Timestamp{
