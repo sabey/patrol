@@ -1,22 +1,32 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/sabey/patrol"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
 
 func main() {
 	start := time.Now()
+	// we need to get our app id
+	id := os.Getenv(patrol.APP_ENV_APP_ID)
+	if id == "" {
+		log.Fatalf("Patrol ID NOT set! Set ENV %s=ID\n", patrol.APP_ENV_APP_ID)
+		return
+	}
 	// parse keepalive from our environment variable
 	ka := os.Getenv(patrol.APP_ENV_KEEPALIVE)
 	if ka == "" {
-		log.Fatalf("KeepAlive NOT set! Set ENV %s=ID\n", patrol.APP_ENV_KEEPALIVE)
+		log.Fatalf("KeepAlive NOT set! Set ENV %s=KEEPALIVE\n", patrol.APP_ENV_KEEPALIVE)
 		return
 	}
 	keepalive, err := strconv.ParseUint(ka, 10, 64)
@@ -24,6 +34,8 @@ func main() {
 		log.Fatalln("Failed to parse KeepAlive!")
 		return
 	}
+	// create a ping channel
+	ping_done := make(chan struct{})
 	// log and fmt will be spread out throughout this app
 	// the reason for this is to send half of the msgs to stdout and the other to stderr
 	log.Println("hello, I am a test app. I will run until you signal me to stop!")
@@ -56,7 +68,69 @@ func main() {
 		}
 		fmt.Printf("I've written our PID: %d to testapp.pid\n", os.Getpid())
 	} else if keepalive == patrol.APP_KEEPALIVE_HTTP {
-		log.Fatalln("KeepAlive: APP_KEEPALIVE_HTTP - NOT IMPLEMENTED")
+		log.Println("KeepAlive: APP_KEEPALIVE_HTTP")
+		listeners := []string{}
+		// unmarshal
+		if err := json.Unmarshal([]byte(os.Getenv(patrol.APP_ENV_LISTEN_HTTP)), &listeners); err != nil {
+			log.Fatalf("failed to unmarshal listeners: \"%s\"\n", err)
+			return
+		}
+		if len(listeners) == 0 {
+			log.Fatalln("no http listeners exist")
+			return
+		}
+		for _, l := range listeners {
+			if l == "" {
+				log.Fatalln("empty http listeners found!")
+				return
+			}
+		}
+		log.Printf("http listeners found: \"%s\" using: \"%s\"\n", listeners, listeners[0])
+		// start pinger
+		go func() {
+			log.Println("http starting to ping in 2 seconds")
+			// we're going to wait 2 seconds BEFORE we start pinging
+			<-time.After(time.Second * 2)
+			log.Println("http starting to ping")
+			p := 1
+			for {
+				select {
+				// we're going to ping every second
+				case <-time.After(time.Second):
+					// build POST body
+					request := fmt.Sprintf(`{"id":"%s","group":"app","pid":%d}`, id, os.Getpid())
+					log.Printf("ping: %d `%s`\n", p, request)
+					response, err := http.Post(
+						fmt.Sprintf("http://%s/ping/", listeners[0]),
+						`application/json`,
+						strings.NewReader(request),
+					)
+					if err != nil {
+						log.Fatalf("http failed to POST: \"%s\" Err: \"%s\"\n", listeners[0], err)
+						return
+					}
+					if response.StatusCode != 200 {
+						log.Fatalf("http failed to POST: \"%s\" StatusCode: %d != 200\n", listeners[0], response.StatusCode)
+						return
+					}
+					// read body
+					body, err := ioutil.ReadAll(response.Body)
+					if err != nil {
+						response.Body.Close()
+						log.Fatalf("http failed to read response.Body: \"%s\" Err: \"%s\"\n", listeners[0], err)
+						return
+					}
+					response.Body.Close()
+					log.Printf("pinged: %d `%s`\n", p, body)
+					p++
+				case <-ping_done:
+					// don't read this value
+					// we're done pinging
+					log.Println("http done pinging")
+					return
+				}
+			}
+		}()
 	} else if keepalive == patrol.APP_KEEPALIVE_UDP {
 		log.Fatalln("KeepAlive: APP_KEEPALIVE_UDP - NOT IMPLEMENTED")
 	} else {
@@ -118,9 +192,12 @@ func main() {
 			case syscall.SIGINT:
 				// terminate process
 				// ctrl+c
-				log.Println("Received SIGINT, closing!")
-				done = true
-				break
+				log.Println("Received SIGINT, stop pinging!")
+				// this signal is currently not referenced anywhere in patrol
+				// we're doing to use this as a signal to stop pinging
+				ping_done <- struct{}{}
+				// we're NOT going to mark this process as done
+				// we're going to wait for a different signal to say we're done
 			case syscall.SIGKILL:
 				log.Println("Received SIGKILL, closing!")
 				done = true
@@ -136,11 +213,9 @@ func main() {
 				os.Exit(12)
 				return
 			case syscall.SIGTERM:
-				log.Println("Received SIGTERM, parent process died, dying in 15 seconds!")
-				go func() {
-					<-time.After(time.Second * 15)
-					log.Fatalln("cya")
-				}()
+				log.Println("Received SIGTERM, parent process died, closing!")
+				done = true
+				break
 			default:
 				// don't try to handle this signal
 				log.Printf("Received Unknown?: %v\n", sig)
@@ -148,6 +223,11 @@ func main() {
 		}
 		if done {
 			// exit loop and quit
+			log.Println("dying in 15 seconds!")
+			go func() {
+				<-time.After(time.Second * 15)
+				log.Fatalln("cya")
+			}()
 			break
 		}
 	}

@@ -21,8 +21,11 @@ const (
 	// app name maximum length in bytes
 	APP_NAME_MAXLENGTH = 255
 	// ping is used by APP_KEEPALIVE_HTTP and APP_KEEPALIVE_UDP
-	APP_PING_EVERY = time.Second * 30
+	APP_PING_TIMEOUT_MIN     = 5
+	APP_PING_TIMEOUT_DEFAULT = 30
+	APP_PING_TIMEOUT_MAX     = 180
 	// environment keys
+	APP_ENV_APP_ID      = `PATROL_ID`
 	APP_ENV_KEEPALIVE   = `PATROL_KEEPALIVE`
 	APP_ENV_PID         = `PATROL_PID`
 	APP_ENV_LISTEN_HTTP = `PATROL_HTTP`
@@ -85,9 +88,7 @@ type App struct {
 	// we're going to save our exit code for history
 	// this is only supported by APP_KEEPALIVE_PID_PATROL
 	exit_code uint8
-	// ping is used by APP_KEEPALIVE_HTTP and APP_KEEPALIVE_UDP
-	ping time.Time
-	mu   sync.RWMutex
+	mu        sync.RWMutex
 }
 
 func (self *App) IsValid() bool {
@@ -265,6 +266,7 @@ func (self *App) startApp() error {
 		}
 	}
 	// patrol environment variables
+	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", APP_ENV_APP_ID, self.id))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%d", APP_ENV_KEEPALIVE, self.config.KeepAlive))
 	if self.config.KeepAlive == APP_KEEPALIVE_PID_PATROL ||
 		self.config.KeepAlive == APP_KEEPALIVE_PID_APP {
@@ -409,12 +411,23 @@ func (self *App) isAppRunning() error {
 	if self.config.KeepAlive == APP_KEEPALIVE_HTTP ||
 		self.config.KeepAlive == APP_KEEPALIVE_UDP {
 		// check if we've been pinged recently
-		// if last ping + ping timeout is NOT after now we know that we've timedout
-		if time.Now().After(self.ping.Add(APP_PING_EVERY)) {
-			// expired
-			// close app
-			self.close()
-			return ERR_APP_PING_EXPIRED
+		// if lastseen + ping timeout is NOT after now we know that we've timedout
+		if self.lastseen.IsZero() {
+			// use started timestamp
+			if time.Now().After(self.started.Add(time.Duration(self.patrol.config.PingTimeout) * time.Second)) {
+				// expired
+				// close app
+				self.close()
+				return ERR_APP_PING_EXPIRED
+			}
+		} else {
+			// use lastseen
+			if time.Now().After(self.lastseen.Add(time.Duration(self.patrol.config.PingTimeout) * time.Second)) {
+				// expired
+				// close app
+				self.close()
+				return ERR_APP_PING_EXPIRED
+			}
 		}
 		// running!
 		return nil

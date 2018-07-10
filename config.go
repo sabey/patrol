@@ -72,6 +72,9 @@ type Config struct {
 	// used for time.Format()
 	// empty defaults to time.String()
 	Timestamp string `json:"json-timestamp,omitempty"`
+	// we're going to allow our ping timeout to be overwritten
+	// we'll multiply this by time.Second
+	PingTimeout int `json:"ping-timeout,omitempty"`
 	// we have to have extra configs for our list of listeners - we'll allow multiple ones to exist
 	// we won't create any listeners of our own in THIS package!
 	// if a HTTP or UDP listener is required, the only time one would be created is in our subpackage `patrol`
@@ -100,15 +103,16 @@ func (self *Config) Clone() *Config {
 		return nil
 	}
 	config := &Config{
-		Apps:       make(map[string]*ConfigApp),
-		Services:   make(map[string]*ConfigService),
-		TickEvery:  self.TickEvery,
-		History:    self.History,
-		Timestamp:  self.Timestamp,
-		ListenHTTP: make([]string, 0, len(self.ListenHTTP)),
-		ListenUDP:  make([]string, 0, len(self.ListenUDP)),
-		HTTP:       self.HTTP.Clone(),
-		UDP:        self.UDP.Clone(),
+		Apps:        make(map[string]*ConfigApp),
+		Services:    make(map[string]*ConfigService),
+		TickEvery:   self.TickEvery,
+		History:     self.History,
+		Timestamp:   self.Timestamp,
+		PingTimeout: self.PingTimeout,
+		ListenHTTP:  make([]string, 0, len(self.ListenHTTP)),
+		ListenUDP:   make([]string, 0, len(self.ListenUDP)),
+		HTTP:        self.HTTP.Clone(),
+		UDP:         self.UDP.Clone(),
 	}
 	for k, v := range self.Apps {
 		config.Apps[k] = v.Clone()
@@ -218,6 +222,13 @@ func (self *Config) Validate() error {
 		self.History = HISTORY_MIN
 	} else if self.History > HISTORY_MAX {
 		self.History = HISTORY_MAX
+	}
+	if self.PingTimeout == 0 {
+		self.PingTimeout = APP_PING_TIMEOUT_DEFAULT
+	} else if self.PingTimeout < HISTORY_MIN {
+		self.PingTimeout = APP_PING_TIMEOUT_MIN
+	} else if self.PingTimeout > HISTORY_MAX {
+		self.PingTimeout = APP_PING_TIMEOUT_MAX
 	}
 	return nil
 }
