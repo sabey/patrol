@@ -2,9 +2,9 @@ package patrol
 
 type History struct {
 	PID      uint32                 `json:"pid,omitempty"`
-	Started  PatrolTimestamp        `json:"started,omitempty"`
-	LastSeen PatrolTimestamp        `json:"lastseen,omitempty"`
-	Stopped  PatrolTimestamp        `json:"stopped,omitempty"`
+	Started  *Timestamp             `json:"started,omitempty"`
+	LastSeen *Timestamp             `json:"lastseen,omitempty"`
+	Stopped  *Timestamp             `json:"stopped,omitempty"`
 	Disabled bool                   `json:"disabled,omitempty"`
 	Shutdown bool                   `json:"shutdown,omitempty"`
 	ExitCode uint8                  `json:"exit-code,omitempty"`

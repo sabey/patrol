@@ -6,6 +6,10 @@ const (
 	API_TOGGLE_DISABLE
 	API_TOGGLE_RUNONCE
 )
+const (
+	LISTEN_HTTP_PORT_DEFAULT = 8421
+	LISTEN_UDP_PORT_DEFAULT  = 1248
+)
 
 type API_Request struct {
 	ID              string                 `json:"id,omitempty"`
@@ -28,8 +32,8 @@ type API_Response struct {
 	ID       string                 `json:"id,omitempty"`
 	Group    string                 `json:"group,omitempty"`
 	PID      uint32                 `json:"pid,omitempty"`
-	Started  PatrolTimestamp        `json:"started,omitempty"`
-	LastSeen PatrolTimestamp        `json:"lastseen,omitempty"`
+	Started  *Timestamp             `json:"started,omitempty"`
+	LastSeen *Timestamp             `json:"lastseen,omitempty"`
 	Disabled bool                   `json:"disabled,omitempty"`
 	Shutdown bool                   `json:"shutdown,omitempty"`
 	History  []*History             `json:"history,omitempty"`

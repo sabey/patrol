@@ -1,0 +1,13 @@
+{
+  "apps": {
+    "testapp": {
+      "keepalive": 3,
+      "binary": "testapp",
+      "name": "http test application",
+      "working-directory": "testapp",
+      "log-directory": "logs",
+      "pid-path": "app.pid",
+      "disabled": true
+    }
+  }
+}

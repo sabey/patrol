@@ -5,12 +5,12 @@ import (
 	"time"
 )
 
-type PatrolTimestamp struct {
+type Timestamp struct {
 	time.Time
 	f string
 }
 
-func (self PatrolTimestamp) MarshalJSON() ([]byte, error) {
+func (self Timestamp) MarshalJSON() ([]byte, error) {
 	// if our object is nil, we're going to end up using String()
 	// if we want to ALWAYS make use of Format, we must set a format even when time is zero
 	if self.f == "" {

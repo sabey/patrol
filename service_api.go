@@ -29,19 +29,23 @@ func (self *Service) apiRequest(
 }
 func (self *Service) apiResponse() *API_Response {
 	result := &API_Response{
-		ID:    self.id,
-		Group: "service",
-		Started: PatrolTimestamp{
-			Time: self.started,
-			f:    self.patrol.config.Timestamp,
-		},
-		LastSeen: PatrolTimestamp{
-			Time: self.lastseen,
-			f:    self.patrol.config.Timestamp,
-		},
+		ID:       self.id,
+		Group:    "service",
 		Disabled: self.disabled,
 		Shutdown: self.patrol.shutdown,
 		KeyValue: self.getKeyValue(),
+	}
+	if !self.started.IsZero() {
+		result.Started = &Timestamp{
+			Time: self.started,
+			f:    self.patrol.config.Timestamp,
+		}
+	}
+	if !self.lastseen.IsZero() {
+		result.LastSeen = &Timestamp{
+			Time: self.lastseen,
+			f:    self.patrol.config.Timestamp,
+		}
 	}
 	return result
 }

@@ -1,0 +1,13 @@
+{
+  "apps": {
+    "testapp": {
+      "keepalive": 4,
+      "binary": "testapp",
+      "name": "udp test application",
+      "working-directory": "testapp",
+      "log-directory": "logs",
+      "pid-path": "app.pid",
+      "disabled": true
+    }
+  }
+}

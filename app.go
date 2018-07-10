@@ -189,15 +189,7 @@ func (self *App) close() {
 			// for example if our APP controls the PID, when we ping to check if its alive, it would override PID with something incorrect
 			// pid is garaunteed to always exist for APP_KEEPALIVE_PID_PATROL
 			PID: self.pid,
-			Started: PatrolTimestamp{
-				Time: self.started,
-				f:    self.patrol.config.Timestamp,
-			},
-			LastSeen: PatrolTimestamp{
-				Time: self.lastseen,
-				f:    self.patrol.config.Timestamp,
-			},
-			Stopped: PatrolTimestamp{
+			Stopped: &Timestamp{
 				Time: time.Now(),
 				f:    self.patrol.config.Timestamp,
 			},
@@ -206,6 +198,18 @@ func (self *App) close() {
 			// exit code is only garaunteed to exist for APP_KEEPALIVE_PID_PATROL
 			ExitCode: self.exit_code,
 			KeyValue: self.getKeyValue(),
+		}
+		if !self.started.IsZero() {
+			h.Started = &Timestamp{
+				Time: self.started,
+				f:    self.patrol.config.Timestamp,
+			}
+		}
+		if !self.lastseen.IsZero() {
+			h.LastSeen = &Timestamp{
+				Time: self.lastseen,
+				f:    self.patrol.config.Timestamp,
+			}
 		}
 		self.history = append(self.history, h)
 		// reset values

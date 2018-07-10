@@ -82,6 +82,11 @@ type Config struct {
 	// neither seem to be used anywhere, good enough for us an easy to remember
 	ListenHTTP []string `json:"listen-http,omitempty"`
 	ListenUDP  []string `json:"listen-udp,omitempty"`
+	// we're going to add options for a default listener here
+	// these values won't be used in this package internally
+	// IF these values are NIL and we need them, we will listen on LOOPBACK interfaces!!!
+	HTTP *ConfigHTTP `json:"http,omitempty"`
+	UDP  *ConfigUDP  `json:"udp,omitempty"`
 }
 
 func (self *Config) IsValid() bool {
@@ -102,6 +107,8 @@ func (self *Config) Clone() *Config {
 		Timestamp:  self.Timestamp,
 		ListenHTTP: make([]string, 0, len(self.ListenHTTP)),
 		ListenUDP:  make([]string, 0, len(self.ListenUDP)),
+		HTTP:       self.HTTP.Clone(),
+		UDP:        self.UDP.Clone(),
 	}
 	for k, v := range self.Apps {
 		config.Apps[k] = v.Clone()

@@ -133,20 +133,24 @@ func (self *Service) close() {
 			self.history = self.history[1:]
 		}
 		h := &History{
-			Started: PatrolTimestamp{
-				Time: self.started,
-				f:    self.patrol.config.Timestamp,
-			},
-			LastSeen: PatrolTimestamp{
-				Time: self.lastseen,
-				f:    self.patrol.config.Timestamp,
-			},
-			Stopped: PatrolTimestamp{
+			Stopped: &Timestamp{
 				Time: time.Now(),
 				f:    self.patrol.config.Timestamp,
 			},
 			Shutdown: self.patrol.shutdown,
 			KeyValue: self.getKeyValue(),
+		}
+		if !self.started.IsZero() {
+			h.Started = &Timestamp{
+				Time: self.started,
+				f:    self.patrol.config.Timestamp,
+			}
+		}
+		if !self.lastseen.IsZero() {
+			h.LastSeen = &Timestamp{
+				Time: self.lastseen,
+				f:    self.patrol.config.Timestamp,
+			}
 		}
 		self.history = append(self.history, h)
 		// reset values
