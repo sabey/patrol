@@ -18,6 +18,17 @@ func (self *Patrol) runServices() {
 				service.mu.Unlock()
 				wg.Done()
 			}()
+			if service.config.TriggerDisabled != nil &&
+				service.disabled && !shutdown {
+				// we're going to temporarily unlock so that we can check our trigger disabled state externally
+				// we're doing this to avoid a deadlock
+				// the upside is that the state of our App can't be changed externally in any way to mess up our logic
+				service.mu.Unlock()
+				service.config.TriggerDisabled(service)
+				// and relock since we've deferred
+				service.mu.Lock()
+				// we can continue to check our state now
+			}
 			if service.disabled || shutdown {
 				// we're either disabled or shutting down
 				// check if we're running, if we are we need to shutdown

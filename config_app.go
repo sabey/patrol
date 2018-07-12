@@ -147,6 +147,9 @@ type ConfigApp struct {
 	TriggerRunning func(
 		app *App,
 	) `json:"-"`
+	TriggerDisabled func(
+		app *App,
+	) `json:"-"`
 	TriggerClosed func(
 		app *App,
 		history *History,
@@ -191,6 +194,7 @@ func (self *ConfigApp) Clone() *ConfigApp {
 		TriggerStartedPinged: self.TriggerStartedPinged,
 		TriggerStartFailed:   self.TriggerStartFailed,
 		TriggerRunning:       self.TriggerRunning,
+		TriggerDisabled:      self.TriggerDisabled,
 		TriggerClosed:        self.TriggerClosed,
 		TriggerPinged:        self.TriggerPinged,
 	}

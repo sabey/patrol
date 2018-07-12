@@ -104,6 +104,10 @@ type Config struct {
 	TriggerStarted func(
 		patrol *Patrol,
 	) `json:"-"`
+	// tick is called on every tick() before apps/services is called
+	TriggerTick func(
+		patrol *Patrol,
+	) `json:"-"`
 	// stopped runs everytime tick is stopped
 	TriggerStopped func(
 		patrol *Patrol,
@@ -134,6 +138,7 @@ func (self *Config) Clone() *Config {
 		TriggerStart:    self.TriggerStart,
 		TriggerShutdown: self.TriggerShutdown,
 		TriggerStarted:  self.TriggerStarted,
+		TriggerTick:     self.TriggerTick,
 		TriggerStopped:  self.TriggerStopped,
 	}
 	for k, v := range self.Apps {

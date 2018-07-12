@@ -76,6 +76,10 @@ func (self *Patrol) tick() {
 	}()
 	var wg sync.WaitGroup
 	for {
+		// call tick
+		if self.config.TriggerTick != nil {
+			self.config.TriggerTick(self)
+		}
 		self.mu.RLock()
 		// if we're shutting down, do not close yet
 		// we first want to notify our apps/services we're closing
