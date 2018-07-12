@@ -458,7 +458,7 @@ func TestAppExecHTTP(t *testing.T) {
 	go func() {
 		// create mux
 		mux := http.NewServeMux()
-		mux.HandleFunc("/ping/", patrol.ServeHTTPPing)
+		mux.HandleFunc("/api/", patrol.ServeHTTPAPI)
 		// serve will block
 		http.Serve(l, mux)
 	}()

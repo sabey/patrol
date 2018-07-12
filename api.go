@@ -12,9 +12,16 @@ const (
 	LISTEN_UDP_PORT_DEFAULT  = 1248
 )
 
+/*
+request by default is stateless, if no values are set then nothing is modified
+the reason we're stateless by default but share the same object is that we use this with UDP as well
+a UDP request can send us a request with no changes and get a state back in response
+our http endpoint in addition will REQUIRE us to use POST to make a modification
+*/
 type API_Request struct {
 	ID              string                 `json:"id,omitempty"`
 	Group           string                 `json:"group,omitempty"`
+	Ping            bool                   `json:"ping,omitempty"`
 	PID             uint32                 `json:"pid,omitempty"`
 	Toggle          uint8                  `json:"toggle,omitempty"`
 	History         bool                   `json:"history,omitempty"`

@@ -8,13 +8,6 @@ import (
 func (self *Patrol) API(
 	request *API_Request,
 ) *API_Response {
-	// API supports both App and Service
-	return self.api(false, request)
-}
-func (self *Patrol) api(
-	ping bool,
-	request *API_Request,
-) *API_Response {
 	if !request.IsValid() {
 		return &API_Response{
 			Errors: []string{
@@ -22,7 +15,7 @@ func (self *Patrol) api(
 			},
 		}
 	}
-	if ping && (request.Group == "service" ||
+	if request.Ping && (request.Group == "service" ||
 		request.Group == "services") {
 		// services don't support Ping currently
 		return &API_Response{
@@ -49,7 +42,7 @@ func (self *Patrol) api(
 		// we're interested in returning our previous state, since we know what our new state will be
 		response := a.apiResponse(false)
 		// handle response
-		if ping &&
+		if request.Ping &&
 			(a.config.KeepAlive == APP_KEEPALIVE_HTTP ||
 				a.config.KeepAlive == APP_KEEPALIVE_UDP) {
 			// only HTTP and UDP can update lastseen by API
@@ -78,7 +71,7 @@ func (self *Patrol) api(
 				go a.config.TriggerPinged(a)
 			}
 		}
-		a.apiRequest(ping, request)
+		a.apiRequest(request)
 		return response
 	} else if request.Group == "service" ||
 		request.Group == "services" {

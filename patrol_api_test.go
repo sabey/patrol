@@ -68,15 +68,9 @@ func TestAPI(t *testing.T) {
 	result := patrol.API(nil)
 	unittest.Equals(t, len(result.Errors), 1)
 	unittest.Equals(t, result.Errors[0], "Request NIL")
-	result = patrol.Ping(nil)
-	unittest.Equals(t, len(result.Errors), 1)
-	unittest.Equals(t, result.Errors[0], "Request NIL")
 
 	request := &API_Request{}
 	result = patrol.API(request)
-	unittest.Equals(t, len(result.Errors), 1)
-	unittest.Equals(t, result.Errors[0], "Unknown Group")
-	result = patrol.Ping(request)
 	unittest.Equals(t, len(result.Errors), 1)
 	unittest.Equals(t, result.Errors[0], "Unknown Group")
 
@@ -86,17 +80,11 @@ func TestAPI(t *testing.T) {
 	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 1)
 	unittest.Equals(t, result.Errors[0], "Unknown Group")
-	result = patrol.Ping(request)
-	unittest.Equals(t, len(result.Errors), 1)
-	unittest.Equals(t, result.Errors[0], "Unknown Group")
 
 	request = &API_Request{
 		Group: "app",
 	}
 	result = patrol.API(request)
-	unittest.Equals(t, len(result.Errors), 1)
-	unittest.Equals(t, result.Errors[0], "Unknown App")
-	result = patrol.Ping(request)
 	unittest.Equals(t, len(result.Errors), 1)
 	unittest.Equals(t, result.Errors[0], "Unknown App")
 
@@ -106,9 +94,6 @@ func TestAPI(t *testing.T) {
 	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 1)
 	unittest.Equals(t, result.Errors[0], "Unknown App")
-	result = patrol.Ping(request)
-	unittest.Equals(t, len(result.Errors), 1)
-	unittest.Equals(t, result.Errors[0], "Unknown App")
 
 	request = &API_Request{
 		Group: "service",
@@ -116,17 +101,12 @@ func TestAPI(t *testing.T) {
 	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 1)
 	unittest.Equals(t, result.Errors[0], "Unknown Service")
-	result = patrol.Ping(request)
-	unittest.Equals(t, len(result.Errors), 1)
-	unittest.Equals(t, result.Errors[0], "Services don't support Ping")
 
 	request = &API_Request{
 		Group: "services",
+		Ping:  true,
 	}
 	result = patrol.API(request)
-	unittest.Equals(t, len(result.Errors), 1)
-	unittest.Equals(t, result.Errors[0], "Unknown Service")
-	result = patrol.Ping(request)
 	unittest.Equals(t, len(result.Errors), 1)
 	unittest.Equals(t, result.Errors[0], "Services don't support Ping")
 
@@ -150,8 +130,9 @@ func TestAPI(t *testing.T) {
 		ID:    "http",
 		Group: "app",
 		PID:   1,
+		Ping:  true,
 	}
-	result = patrol.Ping(request)
+	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 0)
 	unittest.Equals(t, result.ID, "http")
 	unittest.Equals(t, result.Group, "app")
@@ -167,8 +148,9 @@ func TestAPI(t *testing.T) {
 		ID:     "http",
 		Group:  "app",
 		Toggle: API_TOGGLE_DISABLE,
+		Ping:   true,
 	}
-	result = patrol.Ping(request)
+	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 0)
 	unittest.Equals(t, result.ID, "http")
 	unittest.Equals(t, result.Group, "app")
@@ -189,8 +171,9 @@ func TestAPI(t *testing.T) {
 		Group:  "app",
 		Toggle: API_TOGGLE_ENABLE,
 		PID:    0,
+		Ping:   true,
 	}
-	result = patrol.Ping(request)
+	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 0)
 	unittest.Equals(t, result.ID, "http")
 	unittest.Equals(t, result.Group, "app")
@@ -283,8 +266,9 @@ func TestAPI(t *testing.T) {
 		KeyValue: map[string]interface{}{
 			"f": "g",
 		},
+		Ping: true,
 	}
-	result = patrol.Ping(request)
+	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 0)
 	unittest.Equals(t, result.ID, "http")
 	unittest.Equals(t, result.Group, "app")
@@ -304,8 +288,9 @@ func TestAPI(t *testing.T) {
 			"h": "i",
 		},
 		KeyValueReplace: true,
+		Ping:            true,
 	}
-	result = patrol.Ping(request)
+	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 0)
 	unittest.Equals(t, result.ID, "http")
 	unittest.Equals(t, result.Group, "app")
@@ -323,8 +308,9 @@ func TestAPI(t *testing.T) {
 		ID:              "http",
 		Group:           "app",
 		KeyValueReplace: true,
+		Ping:            true,
 	}
-	result = patrol.Ping(request)
+	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 0)
 	unittest.Equals(t, result.ID, "http")
 	unittest.Equals(t, result.Group, "app")
@@ -340,8 +326,9 @@ func TestAPI(t *testing.T) {
 	request = &API_Request{
 		ID:    "http",
 		Group: "app",
+		Ping:  true,
 	}
-	result = patrol.Ping(request)
+	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 0)
 	unittest.Equals(t, result.ID, "http")
 	unittest.Equals(t, result.Group, "app")
@@ -360,8 +347,9 @@ func TestAPI(t *testing.T) {
 	request = &API_Request{
 		ID:    "http",
 		Group: "app",
+		Ping:  true,
 	}
-	result = patrol.Ping(request)
+	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 0)
 	unittest.Equals(t, result.ID, "http")
 	unittest.Equals(t, result.Group, "app")
@@ -383,8 +371,9 @@ func TestAPI(t *testing.T) {
 	request = &API_Request{
 		ID:    "http",
 		Group: "app",
+		Ping:  true,
 	}
-	result = patrol.Ping(request)
+	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 0)
 	unittest.Equals(t, result.ID, "http")
 	unittest.Equals(t, result.Group, "app")
@@ -405,8 +394,9 @@ func TestAPI(t *testing.T) {
 	request = &API_Request{
 		ID:    "http",
 		Group: "app",
+		Ping:  true,
 	}
-	result = patrol.Ping(request)
+	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 0)
 	unittest.Equals(t, result.ID, "http")
 	unittest.Equals(t, result.Group, "app")
@@ -426,8 +416,9 @@ func TestAPI(t *testing.T) {
 	request = &API_Request{
 		ID:    "http",
 		Group: "app",
+		Ping:  true,
 	}
-	result = patrol.Ping(request)
+	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 0)
 	unittest.Equals(t, result.ID, "http")
 	unittest.Equals(t, result.Group, "app")
@@ -445,8 +436,9 @@ func TestAPI(t *testing.T) {
 	request = &API_Request{
 		ID:    "http",
 		Group: "app",
+		Ping:  true,
 	}
-	result = patrol.Ping(request)
+	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 0)
 	unittest.Equals(t, result.ID, "http")
 	unittest.Equals(t, result.Group, "app")

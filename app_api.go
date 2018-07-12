@@ -1,10 +1,9 @@
 package patrol
 
 func (self *App) apiRequest(
-	ping bool,
 	request *API_Request,
 ) {
-	if ping && request.PID > 0 &&
+	if request.Ping && request.PID > 0 &&
 		(self.config.KeepAlive == APP_KEEPALIVE_HTTP ||
 			self.config.KeepAlive == APP_KEEPALIVE_UDP) {
 		// only HTTP and UDP can have their PIDs managed

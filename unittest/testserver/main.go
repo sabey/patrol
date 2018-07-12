@@ -80,7 +80,6 @@ func main() {
 			mux := http.NewServeMux()
 			mux.HandleFunc("/status/", p.ServeHTTPStatus)
 			mux.HandleFunc("/api/", p.ServeHTTPAPI)
-			mux.HandleFunc("/ping/", p.ServeHTTPPing)
 			mux.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 				// The "/" pattern matches everything, so we need to check that we're at the root here.
 				if req.URL.Path != "/" {
@@ -92,8 +91,7 @@ func main() {
 				fmt.Fprintf(w, `Please use one of these endpoints:<br /><br />
 GET /status/<br />
 GET /api/?group=(app||service)&amp;id=app<br />
-POST /api/<br />
-POST /ping/
+POST /api/
 `)
 			})
 			http.ListenAndServe(http_listen, mux)

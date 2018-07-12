@@ -98,10 +98,10 @@ func main() {
 				// we're going to ping every second
 				case <-time.After(time.Second):
 					// build POST body
-					request := fmt.Sprintf(`{"id":"%s","group":"app","pid":%d}`, id, os.Getpid())
+					request := fmt.Sprintf(`{"id":"%s","group":"app","ping":true,"pid":%d}`, id, os.Getpid())
 					log.Printf("ping: %d `%s`\n", p, request)
 					response, err := http.Post(
-						fmt.Sprintf("http://%s/ping/", listeners[0]),
+						fmt.Sprintf("http://%s/api/", listeners[0]),
 						`application/json`,
 						strings.NewReader(request),
 					)
