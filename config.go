@@ -90,6 +90,24 @@ type Config struct {
 	// IF these values are NIL and we need them, we will listen on LOOPBACK interfaces!!!
 	HTTP *ConfigHTTP `json:"http,omitempty"`
 	UDP  *ConfigUDP  `json:"udp,omitempty"`
+	// Triggers
+	// start is run as soon as patrol is created
+	// this is the only trigger that will ever return an error
+	TriggerStart func(
+		patrol *Patrol,
+	) error `json:"-"`
+	// shutdown is run as soon as shutdown is called
+	TriggerShutdown func(
+		patrol *Patrol,
+	) `json:"-"`
+	// started runs everytime tick is started
+	TriggerStarted func(
+		patrol *Patrol,
+	) `json:"-"`
+	// stopped runs everytime tick is stopped
+	TriggerStopped func(
+		patrol *Patrol,
+	) `json:"-"`
 }
 
 func (self *Config) IsValid() bool {
@@ -103,16 +121,20 @@ func (self *Config) Clone() *Config {
 		return nil
 	}
 	config := &Config{
-		Apps:        make(map[string]*ConfigApp),
-		Services:    make(map[string]*ConfigService),
-		TickEvery:   self.TickEvery,
-		History:     self.History,
-		Timestamp:   self.Timestamp,
-		PingTimeout: self.PingTimeout,
-		ListenHTTP:  make([]string, 0, len(self.ListenHTTP)),
-		ListenUDP:   make([]string, 0, len(self.ListenUDP)),
-		HTTP:        self.HTTP.Clone(),
-		UDP:         self.UDP.Clone(),
+		Apps:            make(map[string]*ConfigApp),
+		Services:        make(map[string]*ConfigService),
+		TickEvery:       self.TickEvery,
+		History:         self.History,
+		Timestamp:       self.Timestamp,
+		PingTimeout:     self.PingTimeout,
+		ListenHTTP:      make([]string, 0, len(self.ListenHTTP)),
+		ListenUDP:       make([]string, 0, len(self.ListenUDP)),
+		HTTP:            self.HTTP.Clone(),
+		UDP:             self.UDP.Clone(),
+		TriggerStart:    self.TriggerStart,
+		TriggerShutdown: self.TriggerShutdown,
+		TriggerStarted:  self.TriggerStarted,
+		TriggerStopped:  self.TriggerStopped,
 	}
 	for k, v := range self.Apps {
 		config.Apps[k] = v.Clone()

@@ -56,6 +56,10 @@ func (self *Patrol) tick() {
 		return
 	}
 	self.ticker_running = time.Now()
+	if self.config.TriggerStarted != nil {
+		// use goroutine to avoid deadlock
+		go self.config.TriggerStarted(self)
+	}
 	self.mu.Unlock()
 	log.Println("./patrol.tick(): started")
 	defer func() {
@@ -63,6 +67,10 @@ func (self *Patrol) tick() {
 		self.mu.Lock()
 		self.ticker_stop = false
 		self.ticker_running = time.Time{}
+		if self.config.TriggerStopped != nil {
+			// use goroutine to avoid deadlock
+			go self.config.TriggerStopped(self)
+		}
 		self.mu.Unlock()
 		log.Println("./patrol.tick(): stopped")
 	}()

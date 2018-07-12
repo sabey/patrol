@@ -51,6 +51,16 @@ func CreatePatrol(
 			keyvalue: make(map[string]interface{}),
 		}
 	}
+	if config.TriggerStart != nil {
+		// start patrol
+		// we do NOT need to use a goroutine
+		// we'll use this as additional validation
+		// if this returns an error we WONT return a patrol object
+		if err := config.TriggerStart(p); err != nil {
+			// failed to trigger start
+			return nil, err
+		}
+	}
 	return p, nil
 }
 
@@ -112,6 +122,11 @@ func (self *Patrol) GetService(
 func (self *Patrol) Shutdown() {
 	self.mu.Lock()
 	defer self.mu.Unlock()
+	if !self.shutdown && self.config.TriggerShutdown != nil {
+		// never shutdown
+		// use goroutine to avoid deadlock
+		go self.config.TriggerShutdown(self)
+	}
 	self.shutdown = true
 }
 func (self *Patrol) IsShutdown() bool {
