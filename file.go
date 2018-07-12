@@ -3,7 +3,7 @@ package patrol
 import (
 	"fmt"
 	"os"
-	p "path"
+	"path/filepath"
 )
 
 var (
@@ -21,17 +21,17 @@ func OpenFile(
 	// path.Clean will return an absolute path with one exception
 	// it can return "." and ".."
 	// if either of these values are returned they are useless to us, we can't write to the current or parent directories
-	path = p.Clean(path)
+	path = filepath.Clean(path)
 	if path == "." ||
 		path == ".." {
 		// invalid
 		return nil, ERR_PATH_INVALID
 	}
 	// path is usable
-	// we have to open our file for writing, we don't care about reading
-	// we're going to truncate our file if it exists
-	// if our file does not exist we're going to delete it
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+	// we need to open our file for writing, we don't care about writing
+	// we don't care if our file already exists, append if it does!
+	// we also need to create our file if it does not exist
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		// failed to open
 		return nil, err

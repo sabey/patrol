@@ -1,7 +1,7 @@
 package patrol
 
 import (
-	"path"
+	"path/filepath"
 	"testing"
 )
 
@@ -34,7 +34,7 @@ func TestPath(t *testing.T) {
 		"./.",
 		"a/..",
 	} {
-		if r := path.Clean(s); r != "." {
+		if r := filepath.Clean(s); r != "." {
 			t.Fatalf("path: \"%s\" did not match current directory, was: \"%s\"\n", s, r)
 			return
 		}
@@ -50,7 +50,7 @@ func TestPath(t *testing.T) {
 		"../",
 		"./..",
 	} {
-		if r := path.Clean(s); r != ".." {
+		if r := filepath.Clean(s); r != ".." {
 			t.Fatalf("path: \"%s\" did not match parent directory, was: \"%s\"\n", s, r)
 			return
 		}
@@ -68,7 +68,7 @@ func TestPath(t *testing.T) {
 		"/a/.",
 		"/a/..",
 	} {
-		if r := path.Clean(s); r == "." || r == ".." {
+		if r := filepath.Clean(s); r == "." || r == ".." {
 			t.Fatalf("path: \"%s\" did not match either `.` or `..`, was: \"%s\"\n", s, r)
 			return
 		}
