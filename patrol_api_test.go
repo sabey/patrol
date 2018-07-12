@@ -367,6 +367,7 @@ func TestAPI(t *testing.T) {
 	// change keep alive
 	t5 := result.LastSeen.Time
 
+	// verify ping endpoint
 	patrol.apps["http"].config.KeepAlive = APP_KEEPALIVE_PID_APP
 	request = &API_Request{
 		ID:    "http",
@@ -374,6 +375,47 @@ func TestAPI(t *testing.T) {
 		Ping:  true,
 	}
 	result = patrol.API(request)
+	unittest.Equals(t, len(result.Errors), 1)
+	unittest.Equals(t, result.Errors[0], "Ping Not Supported")
+
+	patrol.apps["http"].config.KeepAlive = APP_KEEPALIVE_PID_PATROL
+	request = &API_Request{
+		ID:    "http",
+		Group: "app",
+		Ping:  true,
+	}
+	result = patrol.API(request)
+	unittest.Equals(t, len(result.Errors), 1)
+	unittest.Equals(t, result.Errors[0], "Ping Not Supported")
+
+	patrol.apps["http"].config.KeepAlive = APP_KEEPALIVE_UDP
+	request = &API_Request{
+		ID:    "http",
+		Group: "app",
+		Ping:  true,
+	}
+	result = patrol.api(api_endpoint_http, request)
+	unittest.Equals(t, len(result.Errors), 1)
+	unittest.Equals(t, result.Errors[0], "Invalid Ping Endpoint")
+
+	patrol.apps["http"].config.KeepAlive = APP_KEEPALIVE_HTTP
+	request = &API_Request{
+		ID:    "http",
+		Group: "app",
+		Ping:  true,
+	}
+	result = patrol.api(api_endpoint_udp, request)
+	unittest.Equals(t, len(result.Errors), 1)
+	unittest.Equals(t, result.Errors[0], "Invalid Ping Endpoint")
+
+	// valid endpoint
+	patrol.apps["http"].config.KeepAlive = APP_KEEPALIVE_HTTP
+	request = &API_Request{
+		ID:    "http",
+		Group: "app",
+		Ping:  true,
+	}
+	result = patrol.api(api_endpoint_http, request)
 	unittest.Equals(t, len(result.Errors), 0)
 	unittest.Equals(t, result.ID, "http")
 	unittest.Equals(t, result.Group, "app")
@@ -409,10 +451,9 @@ func TestAPI(t *testing.T) {
 	unittest.Equals(t, len(result.KeyValue), 0)
 
 	// compare last seen
-	unittest.Equals(t, t6.Equal(result.LastSeen.Time), true)
+	unittest.Equals(t, t6.Equal(result.LastSeen.Time), false)
 
-	// change keep alive
-	patrol.apps["http"].config.KeepAlive = APP_KEEPALIVE_PID_PATROL
+	t7 := result.LastSeen.Time
 	request = &API_Request{
 		ID:    "http",
 		Group: "app",
@@ -431,27 +472,7 @@ func TestAPI(t *testing.T) {
 	unittest.Equals(t, len(result.KeyValue), 0)
 
 	// compare last seen
-	unittest.Equals(t, t6.Equal(result.LastSeen.Time), true)
-
-	request = &API_Request{
-		ID:    "http",
-		Group: "app",
-		Ping:  true,
-	}
-	result = patrol.API(request)
-	unittest.Equals(t, len(result.Errors), 0)
-	unittest.Equals(t, result.ID, "http")
-	unittest.Equals(t, result.Group, "app")
-	unittest.Equals(t, result.PID, 1)
-	unittest.Equals(t, result.Started.IsZero(), false)
-	unittest.Equals(t, result.LastSeen.IsZero(), false)
-	unittest.Equals(t, result.Disabled, false)
-	unittest.Equals(t, result.Shutdown, false)
-	unittest.Equals(t, len(result.History), 0)
-	unittest.Equals(t, len(result.KeyValue), 0)
-
-	// compare last seen
-	unittest.Equals(t, t6.Equal(result.LastSeen.Time), true)
+	unittest.Equals(t, t7.Equal(result.LastSeen.Time), false)
 
 	request = &API_Request{
 		ID:    "ssh",

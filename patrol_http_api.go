@@ -72,7 +72,7 @@ func (self *Patrol) ServeHTTPAPI(
 			return
 		}
 	}
-	response := self.API(request)
+	response := self.api(api_endpoint_http, request)
 	if len(response.Errors) > 0 {
 		w.WriteHeader(400)
 	} else {

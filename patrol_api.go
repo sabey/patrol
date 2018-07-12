@@ -5,7 +5,23 @@ import (
 	"time"
 )
 
+const (
+	api_endpoint_none = iota
+	api_endpoint_http
+	api_endpoint_udp
+)
+
 func (self *Patrol) API(
+	request *API_Request,
+) *API_Response {
+	// do not validate endpoint
+	return self.api(
+		api_endpoint_none,
+		request,
+	)
+}
+func (self *Patrol) api(
+	endpoint uint8,
 	request *API_Request,
 ) *API_Response {
 	if !request.IsValid() {
@@ -36,15 +52,36 @@ func (self *Patrol) API(
 				},
 			}
 		}
+		// validate endpoint
+		if request.Ping {
+			if a.config.KeepAlive != APP_KEEPALIVE_HTTP &&
+				a.config.KeepAlive != APP_KEEPALIVE_UDP {
+				// unknown ping method
+				return &API_Response{
+					Errors: []string{
+						"Ping Not Supported",
+					},
+				}
+			}
+			if endpoint != api_endpoint_none {
+				// validate ping endpoint
+				if (a.config.KeepAlive == APP_KEEPALIVE_HTTP && endpoint != api_endpoint_http) ||
+					(a.config.KeepAlive == APP_KEEPALIVE_UDP && endpoint != api_endpoint_udp) {
+					return &API_Response{
+						Errors: []string{
+							"Invalid Ping Endpoint",
+						},
+					}
+				}
+			}
+		}
 		a.mu.Lock()
 		defer a.mu.Unlock()
 		// we need to process our response before we update our object
 		// we're interested in returning our previous state, since we know what our new state will be
 		response := a.apiResponse(false)
 		// handle response
-		if request.Ping &&
-			(a.config.KeepAlive == APP_KEEPALIVE_HTTP ||
-				a.config.KeepAlive == APP_KEEPALIVE_UDP) {
+		if request.Ping {
 			// only HTTP and UDP can update lastseen by API
 			a.lastseen = time.Now()
 			// we need to check if we ever started this app
