@@ -6,12 +6,12 @@ import (
 )
 
 func (self *Patrol) HandleUDPConnection(
-	conn *net.UDPConn,
+	conn net.PacketConn,
 ) error {
 	// wrap this function in a for loop, externally to this package
 	// if timeouts are necessary add them outside of that loop
 	body := make([]byte, 2048)
-	n, addr, err := conn.ReadFromUDP(body)
+	n, addr, err := conn.ReadFrom(body)
 	if err != nil {
 		// we failed to read
 		return err
@@ -30,7 +30,7 @@ func (self *Patrol) HandleUDPConnection(
 	// marshal response
 	bs, _ := json.Marshal(response)
 	// write response
-	if _, err = conn.WriteToUDP(bs, addr); err != nil {
+	if _, err = conn.WriteTo(bs, addr); err != nil {
 		return err
 	}
 	// done!
