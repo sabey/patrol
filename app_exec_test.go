@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"sabey.co/unittest"
+	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -104,7 +105,6 @@ func TestAppExecPatrolPID(t *testing.T) {
 		},
 	}
 	bs2, _ := json.MarshalIndent(result, "", "\t")
-
 	unittest.Equals(t, string(bs1), string(bs2))
 }
 func TestAppExecPatrolShutdown(t *testing.T) {
@@ -541,5 +541,154 @@ func TestAppExecHTTP(t *testing.T) {
 	unittest.IsNil(t, err)
 	unittest.NotNil(t, process)
 	unittest.NotNil(t, process.Signal(syscall.Signal(0)))
+}
+func TestAppExecUDP(t *testing.T) {
+	log.Println("TestAppExecUDP")
 
+	wd, err := os.Getwd()
+	unittest.IsNil(t, err)
+	unittest.Equals(t, wd != "", true)
+
+	// we need to create a net listener on an unavailable port so we can pass it in our config
+	c, err := net.ListenPacket("udp", ":0")
+	unittest.IsNil(t, err)
+	defer c.Close()
+	conn, ok := c.(*net.UDPConn)
+	unittest.Equals(t, ok, true)
+
+	// get address
+	log.Printf("listening on: \"%s\"\n", c.LocalAddr().String())
+
+	config := &Config{
+		History:     5,
+		Timestamp:   time.RFC1123Z,
+		PingTimeout: APP_PING_TIMEOUT_MIN, // we're going to overwrite this internally
+		Apps: map[string]*ConfigApp{
+			"udp": &ConfigApp{
+				Name:             "testapp",
+				KeepAlive:        APP_KEEPALIVE_UDP,
+				WorkingDirectory: wd + "/unittest/testapp",
+				PIDPath:          "testapp.pid",
+				LogDirectory:     "logs",
+				Binary:           "testapp",
+				// we're going to hijack our stderr and stdout for easy debugging
+				Stderr: os.Stderr,
+				Stdout: os.Stdout,
+			},
+		},
+		ListenUDP: []string{
+			c.LocalAddr().String(),
+		},
+	}
+	// test udp listeners
+	patrol, err := CreatePatrol(config)
+	unittest.IsNil(t, err)
+	unittest.NotNil(t, patrol)
+
+	// we're going to overwrite our ping timeout internally
+	patrol.config.PingTimeout = 2
+
+	// create udp server
+	udp_done := false
+	var udp_mu sync.Mutex
+	go func() {
+		for {
+			if err := patrol.HandleUDPConnection(conn); err != nil {
+				// we failed to write
+				udp_mu.Lock()
+				if udp_done {
+					// we're done!!!
+					// ignore this error
+					udp_mu.Unlock()
+					return
+				}
+				udp_mu.Unlock()
+				log.Fatalf("udp handle error: \"%s\"\n", err)
+				return
+			}
+		}
+	}()
+	// wait a second for udp server to be built
+	<-time.After(time.Second * 1)
+
+	// start testapp
+	// not running
+	unittest.NotNil(t, patrol.apps["udp"].isAppRunning())
+	unittest.IsNil(t, patrol.apps["udp"].startApp())
+	// from here on out we have to use a mutex incase ping races
+	// app should be running now
+	// our comparator should be based off of started until we receive a ping
+	// once we receive our first ping we will compare on ping
+	patrol.apps["udp"].mu.Lock()
+	unittest.IsNil(t, patrol.apps["udp"].isAppRunning())
+	patrol.apps["udp"].mu.Unlock()
+	// we have to wait a second or two for Start() to run AND THEN have testapp write our PID to file
+	// if we do not wait testapp could run and not yet write PID
+	fmt.Println("waiting for app")
+	<-time.After(time.Second * 5)
+	fmt.Println("waited for app")
+	// verify we're receiving pings
+	patrol.apps["udp"].mu.Lock()
+	unittest.IsNil(t, patrol.apps["udp"].isAppRunning())
+	// verify we've received a PID back
+	pid := patrol.apps["udp"].pid
+	unittest.Equals(t, pid > 0, true)
+	patrol.apps["udp"].mu.Unlock()
+
+	// signal back we want pinging to stop
+	fmt.Printf("signaling app PID: %d\n", pid)
+	process, err := os.FindProcess(int(pid))
+	unittest.IsNil(t, err)
+	unittest.NotNil(t, process)
+	unittest.IsNil(t, process.Signal(syscall.SIGINT))
+
+	// ping will timeout after 2 seconds
+	// wait for keepalive to expire
+	fmt.Println("waiting for app to timeout")
+	<-time.After(time.Second * 5)
+	fmt.Println("app timed out")
+
+	// check that our process is considered to be not running
+	patrol.apps["udp"].mu.Lock()
+	unittest.NotNil(t, patrol.apps["udp"].isAppRunning())
+	// check our history
+	unittest.Equals(t, len(patrol.apps["udp"].history), 1)
+	unittest.Equals(t, patrol.apps["udp"].history[0].PID, pid)
+	unittest.Equals(t, patrol.apps["udp"].history[0].Started.IsZero(), false)
+	unittest.Equals(t, patrol.apps["udp"].history[0].LastSeen.IsZero(), false)
+	unittest.Equals(t, patrol.apps["udp"].history[0].Stopped.IsZero(), false)
+	unittest.Equals(t, patrol.apps["udp"].history[0].Shutdown, false)
+	unittest.Equals(t, patrol.apps["udp"].history[0].ExitCode, 0)
+	patrol.apps["udp"].mu.Unlock()
+
+	fmt.Println("verifying app is still alive")
+	// our process SHOULD still be alive
+	// we're going to use kill -0 to double check
+	fmt.Printf("signaling kill -0 PID: %d\n", pid)
+	process, err = os.FindProcess(int(pid))
+	unittest.IsNil(t, err)
+	unittest.NotNil(t, process)
+	unittest.IsNil(t, process.Signal(syscall.Signal(0)))
+
+	udp_mu.Lock()
+	udp_done = true
+	udp_mu.Unlock()
+
+	fmt.Printf("signaling app to exit PID: %d\n", pid)
+	process, err = os.FindProcess(int(pid))
+	unittest.IsNil(t, err)
+	unittest.NotNil(t, process)
+	unittest.IsNil(t, process.Signal(syscall.SIGKILL))
+
+	fmt.Println("waiting to exit")
+	<-time.After(time.Second * 3)
+
+	fmt.Println("verifying app is dead")
+	// our process SHOULD still dead
+	// we're going to use kill -0 to double check
+	fmt.Printf("signaling kill -0 PID: %d\n", pid)
+	process, err = os.FindProcess(int(pid))
+	unittest.IsNil(t, err)
+	unittest.NotNil(t, process)
+	unittest.NotNil(t, process.Signal(syscall.Signal(0)))
 }

@@ -119,6 +119,9 @@ func (self *Service) ReplaceKeyValue(
 func (self *Service) GetHistory() []*History {
 	self.mu.RLock()
 	defer self.mu.RUnlock()
+	return self.getHistory()
+}
+func (self *Service) getHistory() []*History {
 	// dereference
 	history := make([]*History, 0, len(self.history))
 	for _, h := range self.history {

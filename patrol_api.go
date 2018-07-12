@@ -9,6 +9,7 @@ const (
 	api_endpoint_none = iota
 	api_endpoint_http
 	api_endpoint_udp
+	api_endpoint_status
 )
 
 func (self *Patrol) API(
@@ -79,7 +80,7 @@ func (self *Patrol) api(
 		defer a.mu.Unlock()
 		// we need to process our response before we update our object
 		// we're interested in returning our previous state, since we know what our new state will be
-		response := a.apiResponse(false)
+		response := a.apiResponse(endpoint)
 		// handle response
 		if request.Ping {
 			// only HTTP and UDP can update lastseen by API
@@ -124,7 +125,7 @@ func (self *Patrol) api(
 		defer s.mu.Unlock()
 		// we need to process our response before we update our object
 		// we're interested in returning our previous state, since we know what our new state will be
-		response := s.apiResponse(false)
+		response := s.apiResponse(endpoint)
 		// handle response
 		// we can't ever update service lastseen by ping or by api
 		s.apiRequest(request)

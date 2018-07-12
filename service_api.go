@@ -28,16 +28,19 @@ func (self *Service) apiRequest(
 	}
 }
 func (self *Service) apiResponse(
-	status bool,
+	endpoint uint8,
 ) *API_Response {
 	result := &API_Response{
 		Disabled: self.disabled,
-		KeyValue: self.getKeyValue(),
 	}
-	if !status {
+	if endpoint != api_endpoint_udp {
 		// we don't need these values for individual Services
 		result.ID = self.id
 		result.Group = "service"
+		result.History = self.getHistory()
+		result.KeyValue = self.getKeyValue()
+	}
+	if endpoint == api_endpoint_status {
 		// we need to read lock patrol
 		self.patrol.mu.RLock()
 		result.Shutdown = self.patrol.shutdown

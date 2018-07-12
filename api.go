@@ -36,6 +36,11 @@ func (self *API_Request) IsValid() bool {
 	return true
 }
 
+/*
+when using UDP, we won't be able to respond with all of our data, we're going to have to limit our response size
+we're going to limit our response to: `id, group, pid, started, lastseen, disabled, shutdown`
+we'll have to ignore `history, keyvalue, and errors`, if they're needed the JSON endpoint should be used instead
+*/
 type API_Response struct {
 	ID       string                 `json:"id,omitempty"`
 	Group    string                 `json:"group,omitempty"`

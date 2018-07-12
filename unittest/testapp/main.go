@@ -6,11 +6,13 @@ import (
 	"github.com/sabey/patrol"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -35,7 +37,12 @@ func main() {
 		return
 	}
 	// create a ping channel
-	ping_done := make(chan struct{})
+	ping := make(chan struct{})
+	// we want to know if we managed to read any response
+	// we require at least ONE successful message to be read in response!
+	ping_read := false
+	ping_done := false
+	var ping_mu sync.Mutex
 	// log and fmt will be spread out throughout this app
 	// the reason for this is to send half of the msgs to stdout and the other to stderr
 	log.Println("hello, I am a test app. I will run until you signal me to stop!")
@@ -121,9 +128,21 @@ func main() {
 						return
 					}
 					response.Body.Close()
+					// read something
+					req := &patrol.API_Request{}
+					// unmarshal
+					if err = json.Unmarshal(body, req); err != nil ||
+						!req.IsValid() {
+						// failed to unmarshal
+						log.Fatalf("http failed to unmarshal JSON - Err: \"%s\"\n", err)
+						return
+					}
+					ping_mu.Lock()
+					ping_read = true // successfully read something!
+					ping_mu.Unlock()
 					log.Printf("pinged: %d `%s`\n", p, body)
 					p++
-				case <-ping_done:
+				case <-ping:
 					// don't read this value
 					// we're done pinging
 					log.Println("http done pinging")
@@ -132,7 +151,113 @@ func main() {
 			}
 		}()
 	} else if keepalive == patrol.APP_KEEPALIVE_UDP {
-		log.Fatalln("KeepAlive: APP_KEEPALIVE_UDP - NOT IMPLEMENTED")
+		log.Println("KeepAlive: APP_KEEPALIVE_UDP")
+		listeners := []string{}
+		// unmarshal
+		if err := json.Unmarshal([]byte(os.Getenv(patrol.APP_ENV_LISTEN_UDP)), &listeners); err != nil {
+			log.Fatalf("failed to unmarshal listeners: \"%s\"\n", err)
+			return
+		}
+		if len(listeners) == 0 {
+			log.Fatalln("no udp listeners exist")
+			return
+		}
+		for _, l := range listeners {
+			if l == "" {
+				log.Fatalln("empty udp listeners found!")
+				return
+			}
+		}
+		log.Printf("udp listeners found: \"%s\" using: \"%s\"\n", listeners, listeners[0])
+		// dial our udp listener
+		d, err := net.ResolveUDPAddr("udp", listeners[0])
+		if err != nil {
+			log.Fatalf("failed to resolve udp listener: \"%s\"\n", err)
+			return
+		}
+		// we don't need to supply a local address, we will take what we can get
+		conn, err := net.DialUDP("udp", nil, d)
+		if err != nil {
+			log.Fatalf("failed to dial udp: \"%s\"\n", err)
+			return
+		}
+		defer conn.Close()
+		// start write pinger
+		go func() {
+			log.Println("udp starting to ping in 2 seconds")
+			// we're going to wait 2 seconds BEFORE we start pinging
+			<-time.After(time.Second * 2)
+			log.Println("udp starting to ping")
+			p := 1
+			for {
+				select {
+				// unlike HTTP we're going to ping every HALF second
+				// when using HTTP we should be guaranteed for one message to be delivered within 3 seconds
+				// here we should up our attempts just in case, otherwise we may only send 2 packets
+				case <-time.After(time.Millisecond * 500):
+					// build JSON body
+					request := fmt.Sprintf(`{"id":"%s","group":"app","ping":true,"pid":%d}`, id, os.Getpid())
+					log.Printf("ping: %d `%s`\n", p, request)
+					_, err := conn.Write([]byte(request))
+					if err != nil {
+						log.Fatalf("udp failed to write: \"%s\" Err: \"%s\"\n", listeners[0], err)
+						return
+					}
+					// DO NOT READ A RESPONSE HERE!!!
+					p++
+				case <-ping:
+					// don't read this value
+					// we're done pinging
+					log.Println("udp done pinging")
+					return
+				}
+			}
+		}()
+		// start read pinger
+		go func() {
+			log.Println("udp starting to read")
+			p := 1
+			for {
+				select {
+				case <-ping:
+					// don't read this value
+					// we're done pinging
+					log.Println("udp done pinging")
+					return
+				default:
+					// read response?
+					body := make([]byte, 2048)
+					n, _, err := conn.ReadFromUDP(body)
+					if err != nil {
+						// we failed to read
+						ping_mu.Lock()
+						if ping_done {
+							// we're done!!!
+							// ignore this error
+							ping_mu.Unlock()
+							return
+						}
+						ping_mu.Unlock()
+						log.Fatalf("udp failed to read - Err: \"%s\"\n", err)
+						return
+					}
+					// read something
+					request := &patrol.API_Request{}
+					// unmarshal
+					if err = json.Unmarshal(body[:n], request); err != nil ||
+						!request.IsValid() {
+						// failed to unmarshal
+						log.Fatalf("udp failed to unmarshal JSON - Err: \"%s\"\n", err)
+						return
+					}
+					ping_mu.Lock()
+					ping_read = true // successfully read something!
+					ping_mu.Unlock()
+					log.Printf("pinged: %d `%s`\n", p, body[:n])
+					p++
+				}
+			}
+		}()
 	} else {
 		log.Fatalln("Unknown KeepAlive Method!")
 		return
@@ -195,7 +320,17 @@ func main() {
 				log.Println("Received SIGINT, stop pinging!")
 				// this signal is currently not referenced anywhere in patrol
 				// we're doing to use this as a signal to stop pinging
-				ping_done <- struct{}{}
+				ping_mu.Lock()
+				if !ping_read {
+					log.Fatalln("failed to receive any responses - dying!")
+				}
+				if !ping_done {
+					// we've got multiple goroutines relying on this
+					// we have to use close instead of sending a struct
+					close(ping)
+					ping_done = true
+				}
+				ping_mu.Unlock()
 				// we're NOT going to mark this process as done
 				// we're going to wait for a different signal to say we're done
 			case syscall.SIGKILL:

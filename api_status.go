@@ -25,12 +25,12 @@ func (self *Patrol) getStatus() *API_Status {
 	}
 	for id, app := range self.apps {
 		app.mu.RLock()
-		result.Apps[id] = app.apiResponse(true)
+		result.Apps[id] = app.apiResponse(api_endpoint_status)
 		app.mu.RUnlock()
 	}
 	for id, service := range self.services {
 		service.mu.RLock()
-		result.Apps[id] = service.apiResponse(true)
+		result.Apps[id] = service.apiResponse(api_endpoint_status)
 		service.mu.RUnlock()
 	}
 	return result
