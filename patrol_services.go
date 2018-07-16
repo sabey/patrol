@@ -7,103 +7,120 @@ import (
 
 func (self *Patrol) runServices() {
 	var wg sync.WaitGroup
-	self.mu.RLock()
-	shutdown := self.shutdown
-	self.mu.RUnlock()
-	for id, service := range self.services {
+	// we're going to ignore any shutdown checks in this function
+	// we're only interested in the state of shutdown for Services as we're responsible for running AND managing state
+	for _, service := range self.services {
 		wg.Add(1)
-		go func(id string, service *Service) {
+		go func(service *Service) {
+			defer wg.Done()
+			// we're not going to defer unlocking our service mutex, we're going to occasionally unlock and allow our tiggers to run
+			// for example when we check if our service is running, if we call close() we want to trigger our close right away
+			// if we do not unlock, we could then call startService() without having ever signalled our close trigger
 			service.mu.Lock()
-			defer func() {
+			// we have to check if we're running on every loop, regardless if we're disabled
+			// there's a chance our service could become enabled should we check and find we're running
+			// if we aren't running and we call close() and call our close trigger
+			is_running_err := service.isServiceRunning()
+			is_running := (is_running_err == nil)
+			// we need to run our state triggers
+			if is_running {
+				// we're running!
+				log.Printf("./patrol.runServices(): Service ID: %s is running\n", service.id)
+				if service.config.TriggerRunning != nil {
+					service.mu.Unlock()
+					service.config.TriggerRunning(service)
+					service.mu.Lock()
+				}
+				// if we're disabled or restarting we're going to signal our services to stop
+				if service.restart {
+					// signal our service to restart
+					log.Printf("./patrol.runServices(): Service ID: %s is running AND we're restarting! - Restarting!\n", service.id)
+					if err := service.restartService(); err != nil {
+						log.Printf("./patrol.runServices(): Service ID: %s failed to restart: \"%s\"\n", service.id, err)
+					} else {
+						log.Printf("./patrol.runServices(): Service ID: %s restarted\n", service.id)
+					}
+					// we will only attempt to restart ONCE, we consume restart even if we fail to restart!
+					service.restart = false
+					// it's going to ultimately be up to our Service to exit
+					// we're not going to immediately attempt to start our app on this tick
+					// in fact, if our app chooses not to exit we will do nothing!
+				} else if service.disabled {
+					// signal our service to stop
+					log.Printf("./patrol.runServices(): Service ID: %s is running AND is disabled! - Stopping!\n", service.id)
+					if err := service.stopService(); err != nil {
+						log.Printf("./patrol.runServices(): Service ID: %s failed to stop: \"%s\"\n", service.id, err)
+					} else {
+						log.Printf("./patrol.runServices(): Service ID: %s stopped\n", service.id)
+					}
+				}
 				service.mu.Unlock()
-				wg.Done()
-			}()
-			if service.config.TriggerDisabled != nil &&
-				service.disabled && !shutdown {
-				// we're going to temporarily unlock so that we can check our trigger disabled state externally
-				// we're doing this to avoid a deadlock
-				// the upside is that the state of our App can't be changed externally in any way to mess up our logic
-				service.mu.Unlock()
-				service.config.TriggerDisabled(service)
-				// and relock since we've deferred
-				service.mu.Lock()
-				// we can continue to check our state now
+				// we're done!
+				return
+			} else {
+				// we aren't running
+				if service.disabled {
+					// service is disabled
+					log.Printf("./patrol.runServices(): Service ID: %s is not running AND is disabled! - Reason: \"%s\"\n", service.id, is_running_err)
+					if service.config.TriggerDisabled != nil {
+						service.mu.Unlock()
+						service.config.TriggerDisabled(service)
+						service.mu.Lock()
+					}
+					// check if we're still disabled
+					if service.disabled {
+						// still disabled!!!
+						// nothing we can do
+						service.mu.Unlock()
+						// we're done!
+						return
+					}
+					// we're now enabled!!!
+					log.Printf("./patrol.runServices(): Service ID: %s was disabled and now enabled!\n", service.id)
+				} else {
+					// service is enabled and we aren't running
+					log.Printf("./patrol.runServices(): Service ID: %s was not running, starting! - Reason: \"%s\"\n", service.id, is_running_err)
+				}
 			}
-			if service.disabled || shutdown {
-				// we're either disabled or shutting down
-				// check if we're running, if we are we need to shutdown
-				if err := service.isServiceRunning(); err == nil {
-					// shut it down
-					stop := false
-					if self.shutdown {
-						// Patrol is shutting down
-						if service.config.StopOnShutdown {
-							// service should be stopped on shutdown
-							log.Printf("./patrol.runServices(): Service ID: %s is running AND shutting down! - Stopping!\n", id)
-							stop = true
-						} // ignore
-					}
-					// check if we're disabled
-					if !stop && service.disabled {
-						// service disabled
-						log.Printf("./patrol.runServices(): Service ID: %s is running AND disabled! - Stopping!\n", id)
-						stop = true
-					}
-					if stop {
-						// there's no triggers for this
-						// once a service is closed we will use that as a trigger
-						if err := service.stopService(); err != nil {
-							log.Printf("./patrol.runServices(): Service ID: %s failed to stop: \"%s\"\n", id, err)
-						} else {
-							log.Printf("./patrol.runServices(): Service ID: %s stopped\n", id)
-						}
-					}
+			// time to start our service!
+			log.Printf("./patrol.runServices(): Service ID: %s starting!\n", service.id)
+			if service.config.TriggerStart != nil {
+				service.mu.Unlock()
+				service.config.TriggerStart(service)
+				service.mu.Lock()
+				// this will be our LAST chance to check disabled!!
+				if service.disabled {
+					// disabled!!!
+					service.mu.Unlock()
+					// we're done!
+					log.Printf("./patrol.runServices(): Service ID: %s can't start, we're disabled!\n", service.id)
+					return
+				}
+			}
+			// run!
+			if err := service.startService(); err != nil {
+				log.Printf("./patrol.runServices(): Service ID: %s failed to start: \"%s\"\n", service.id, err)
+				// call start failed trigger
+				if service.config.TriggerStartFailed != nil {
+					service.mu.Unlock()
+					// we're done!
+					service.config.TriggerStartFailed(service)
+					return
 				}
 			} else {
-				// enabled
-				if err := service.isServiceRunning(); err != nil {
-					// call start trigger
-					if service.config.TriggerStart != nil {
-						// we're going to temporarily unlock so that we can check our trigger start state externally
-						// we're doing this to avoid a deadlock
-						// the upside is that the state of our Service can't be changed externally in any way to mess up our logic
-						service.mu.Unlock()
-						service.config.TriggerStart(service)
-						// and relock since we've deferred
-						service.mu.Lock()
-						if service.disabled {
-							// we can't run this Service, we've disabled it externally
-							return
-						}
-						// run!
-					}
-					log.Printf("./patrol.runServices(): Service ID: %s is not running: \"%s\"\n", id, err)
-					if err := service.startService(); err != nil {
-						log.Printf("./patrol.runServices(): Service ID: %s failed to start: \"%s\"\n", id, err)
-						// call start failed trigger
-						if service.config.TriggerStartFailed != nil {
-							// use goroutine to avoid deadlock
-							go service.config.TriggerStartFailed(service)
-						}
-					} else {
-						log.Printf("./patrol.runServices(): Service ID: %s started\n", id)
-						// call started trigger
-						if service.config.TriggerStarted != nil {
-							// use goroutine to avoid deadlock
-							go service.config.TriggerStarted(service)
-						}
-					}
-				} else {
-					log.Printf("./patrol.runServices(): Service ID: %s is running\n", id)
-					// call running trigger
-					// this should be thought of a ping/noop
-					if service.config.TriggerRunning != nil {
-						// use goroutine to avoid deadlock
-						go service.config.TriggerRunning(service)
-					}
+				log.Printf("./patrol.runServices(): Service ID: %s started\n", service.id)
+				// call started trigger
+				if service.config.TriggerStarted != nil {
+					service.mu.Unlock()
+					// we're done!
+					service.config.TriggerStarted(service)
+					return
 				}
 			}
-		}(id, service)
+			service.mu.Unlock()
+			// we're done!
+			return
+		}(service)
 	}
 	wg.Wait()
 }

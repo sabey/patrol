@@ -56,21 +56,27 @@ func (self *Patrol) tick() {
 		return
 	}
 	self.ticker_running = time.Now()
-	if self.config.TriggerStarted != nil {
-		// use goroutine to avoid deadlock
-		go self.config.TriggerStarted(self)
-	}
 	self.mu.Unlock()
+	// signal that we've started
+	if self.config.TriggerStarted != nil {
+		// since we're not in a lock we're going to wait for this function
+		self.config.TriggerStarted(self)
+	}
 	log.Println("./patrol.tick(): started")
 	defer func() {
 		log.Println("./patrol.tick(): stopping")
+		// signal our trigger we've stopped
+		// we should signal our trigger before we signal all of our apps
+		if self.config.TriggerStopped != nil {
+			// since we're not in a lock we're going to wait for this function
+			self.config.TriggerStopped(self)
+		}
+		// we need to signal to all of our apps that we're stopping!
+		self.signalStopApps()
+		// close our ticker
 		self.mu.Lock()
 		self.ticker_stop = false
 		self.ticker_running = time.Time{}
-		if self.config.TriggerStopped != nil {
-			// use goroutine to avoid deadlock
-			go self.config.TriggerStopped(self)
-		}
 		self.mu.Unlock()
 		log.Println("./patrol.tick(): stopped")
 	}()

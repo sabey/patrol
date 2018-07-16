@@ -275,7 +275,9 @@ func TestAppExecPatrolLogDirectory(t *testing.T) {
 	// this will fail if testapp is somehow running
 	// testapp has a self destruct function, it should be about 30 seconds
 	unittest.NotNil(t, app.isAppRunning())
+	unittest.Equals(t, app.started_log.IsZero(), true)
 	unittest.IsNil(t, app.startApp())
+	unittest.Equals(t, app.started_log.IsZero(), false)
 	// we have to wait a second or two for Start() to run AND THEN have testapp write our PID to file
 	// if we do not wait testapp could run and not yet write PID
 	fmt.Println("waiting for app")
@@ -302,6 +304,7 @@ func TestAppExecPatrolLogDirectory(t *testing.T) {
 	app.mu.Lock()
 	// check that our process is dead
 	unittest.NotNil(t, app.isAppRunning())
+	unittest.Equals(t, app.started_log.IsZero(), false)
 	// check our history
 	unittest.Equals(t, len(app.history), 1)
 	unittest.Equals(t, app.history[0].PID, pid)
@@ -316,7 +319,7 @@ func TestAppExecPatrolLogDirectory(t *testing.T) {
 	// verify our logs exist
 
 	// stdout
-	f1, err := os.Open(fmt.Sprintf("%s/%d.stdout.log", app.logDir(), app.history[0].Started.UnixNano()))
+	f1, err := os.Open(fmt.Sprintf("%s/%d.stdout.log", app.logDir(), app.started_log.UnixNano()))
 	unittest.IsNil(t, err)
 	unittest.NotNil(t, f1)
 	// read 2 bytes
@@ -328,7 +331,7 @@ func TestAppExecPatrolLogDirectory(t *testing.T) {
 	// close
 	unittest.IsNil(t, f1.Close())
 	// stderr
-	f2, err := os.Open(fmt.Sprintf("%s/%d.stderr.log", app.logDir(), app.history[0].Started.UnixNano()))
+	f2, err := os.Open(fmt.Sprintf("%s/%d.stderr.log", app.logDir(), app.started_log.UnixNano()))
 	unittest.IsNil(t, err)
 	unittest.NotNil(t, f2)
 	// read 2 bytes
@@ -371,6 +374,9 @@ func TestAppExecAppPID(t *testing.T) {
 	// this will fail if testapp is somehow running
 	// testapp has a self destruct function, it should be about 30 seconds
 	unittest.NotNil(t, app.isAppRunning())
+	// check our history
+	unittest.Equals(t, len(app.history), 0)
+	// start app
 	unittest.IsNil(t, app.startApp())
 	// we have to wait a second or two for Start() to run AND THEN have testapp write our PID to file
 	// if we do not wait testapp could run and not yet write PID
@@ -397,6 +403,17 @@ func TestAppExecAppPID(t *testing.T) {
 	fmt.Println("waiting for app to be killed")
 	<-time.After(time.Second * 2)
 	fmt.Println("app closed")
+
+	// as soon as our app is closed we have to use a mutex since our closing function runs in a goroutine
+	app.mu.Lock()
+	// check our history
+	unittest.Equals(t, len(app.history), 1)
+	// PID should exist, but may not, it's not supported with APP_PID
+	// unittest.Equals(t, app.history[0].PID != 0, true)
+	unittest.Equals(t, app.history[0].Started.IsZero(), false)
+	unittest.Equals(t, app.history[0].Stopped.IsZero(), false)
+	unittest.Equals(t, app.history[0].Shutdown, false)
+	app.mu.Unlock()
 
 	// as soon as our app is closed we have to use a mutex since our closing function runs in a goroutine
 	app.mu.Lock()

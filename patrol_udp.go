@@ -27,6 +27,10 @@ func (self *Patrol) HandleUDPConnection(
 	}
 	// read response
 	response := self.api(api_endpoint_udp, request)
+	if len(response.Errors) > 0 {
+		// DO NOT RESPOND WITH ERRORS!
+		return nil
+	}
 	// marshal response
 	bs, _ := json.Marshal(response)
 	// write response

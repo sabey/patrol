@@ -1,12 +1,15 @@
 package patrol
 
 const (
-	API_TOGGLE_NOOP = iota
-	API_TOGGLE_ENABLE
-	API_TOGGLE_DISABLE
-	API_TOGGLE_RUNONCE
-	API_TOGGLE_RESTART
+	API_TOGGLE_STATE_ENABLE = iota + 1
+	API_TOGGLE_STATE_DISABLE
+	API_TOGGLE_STATE_RESTART
+	API_TOGGLE_STATE_RUNONCE_ENABLE         // enable runonce
+	API_TOGGLE_STATE_RUNONCE_DISABLE        // disable runonce
+	API_TOGGLE_STATE_ENABLE_RUNONCE_ENABLE  // enable AND enable runonce
+	API_TOGGLE_STATE_ENABLE_RUNONCE_DISABLE // enable AND disable runonce
 )
+
 const (
 	LISTEN_HTTP_PORT_DEFAULT = 8421
 	LISTEN_UDP_PORT_DEFAULT  = 1248
@@ -38,7 +41,7 @@ func (self *API_Request) IsValid() bool {
 
 /*
 when using UDP, we won't be able to respond with all of our data, we're going to have to limit our response size
-we're going to limit our response to: `id, group, pid, started, lastseen, disabled, shutdown`
+we're going to limit our response to: `id, group, pid, started, lastseen, disabled, restart, run-once, shutdown`
 we'll have to ignore `history, keyvalue, and errors`, if they're needed the JSON endpoint should be used instead
 */
 type API_Response struct {
@@ -48,6 +51,8 @@ type API_Response struct {
 	Started  *Timestamp             `json:"started,omitempty"`
 	LastSeen *Timestamp             `json:"lastseen,omitempty"`
 	Disabled bool                   `json:"disabled,omitempty"`
+	Restart  bool                   `json:"restart,omitempty"`
+	RunOnce  bool                   `json:"run-once,omitempty"`
 	Shutdown bool                   `json:"shutdown,omitempty"`
 	History  []*History             `json:"history,omitempty"`
 	KeyValue map[string]interface{} `json:"keyvalue,omitempty"`

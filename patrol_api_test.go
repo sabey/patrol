@@ -147,7 +147,7 @@ func TestAPI(t *testing.T) {
 	request = &API_Request{
 		ID:     "http",
 		Group:  "app",
-		Toggle: API_TOGGLE_DISABLE,
+		Toggle: API_TOGGLE_STATE_DISABLE,
 		Ping:   true,
 	}
 	result = patrol.API(request)
@@ -158,18 +158,16 @@ func TestAPI(t *testing.T) {
 	// we hadn't previously started our app
 	// we pinged to notify our app was "running", so now started is set to last seen
 	unittest.Equals(t, result.Started.IsZero(), false)
-	unittest.Equals(t, result.LastSeen.IsZero(), false)
-	unittest.Equals(t, result.Started.Equal(result.LastSeen.Time), true)
+	unittest.IsNil(t, result.LastSeen)
 	unittest.Equals(t, result.Disabled, false)
 	unittest.Equals(t, result.Shutdown, false)
 	unittest.Equals(t, len(result.History), 0)
 	unittest.Equals(t, len(result.KeyValue), 0)
-	t1 := result.LastSeen.Time
 
 	request = &API_Request{
 		ID:     "http",
 		Group:  "app",
-		Toggle: API_TOGGLE_ENABLE,
+		Toggle: API_TOGGLE_STATE_ENABLE,
 		PID:    0,
 		Ping:   true,
 	}
@@ -184,15 +182,27 @@ func TestAPI(t *testing.T) {
 	unittest.Equals(t, result.Shutdown, false)
 	unittest.Equals(t, len(result.History), 0)
 	unittest.Equals(t, len(result.KeyValue), 0)
-	t2 := result.LastSeen.Time
+	t1 := result.LastSeen.Time
 
-	// compare last seen
-	unittest.Equals(t, t1.Equal(t2), false)
-
+	// PID no ping
 	request = &API_Request{
 		ID:    "http",
 		Group: "app",
-		PID:   2,
+		PID:   1,
+		KeyValue: map[string]interface{}{
+			"a": "b",
+		},
+	}
+	result = patrol.API(request)
+	unittest.Equals(t, len(result.Errors), 1)
+	unittest.Equals(t, result.Errors[0], "PID Requires Ping")
+
+	// ping PID again
+	request = &API_Request{
+		ID:    "http",
+		Group: "app",
+		PID:   1,
+		Ping:  true,
 		KeyValue: map[string]interface{}{
 			"a": "b",
 		},
@@ -208,10 +218,10 @@ func TestAPI(t *testing.T) {
 	unittest.Equals(t, result.Shutdown, false)
 	unittest.Equals(t, len(result.History), 0)
 	unittest.Equals(t, len(result.KeyValue), 0)
-	t3 := result.LastSeen.Time
+	t2 := result.LastSeen.Time
 
 	// compare last seen
-	unittest.Equals(t, t2.Equal(t3), false)
+	unittest.Equals(t, t1.Equal(t2), false)
 
 	patrol.shutdown = true
 	request = &API_Request{
@@ -235,7 +245,8 @@ func TestAPI(t *testing.T) {
 	unittest.Equals(t, result.KeyValue["a"], "b")
 
 	// compare last seen
-	unittest.Equals(t, t3.Equal(result.LastSeen.Time), true)
+	// lastseen hasn't changed, we didn't ping
+	unittest.Equals(t, t2.Equal(result.LastSeen.Time), false)
 
 	patrol.shutdown = false
 	request = &API_Request{
@@ -341,7 +352,7 @@ func TestAPI(t *testing.T) {
 	unittest.Equals(t, len(result.KeyValue), 0)
 
 	// change keep alive
-	t4 := result.LastSeen.Time
+	t3 := result.LastSeen.Time
 
 	patrol.apps["http"].config.KeepAlive = APP_KEEPALIVE_UDP
 	request = &API_Request{
@@ -362,10 +373,10 @@ func TestAPI(t *testing.T) {
 	unittest.Equals(t, len(result.KeyValue), 0)
 
 	// compare last seen
-	unittest.Equals(t, t4.Equal(result.LastSeen.Time), false)
+	unittest.Equals(t, t3.Equal(result.LastSeen.Time), false)
 
 	// change keep alive
-	t5 := result.LastSeen.Time
+	t4 := result.LastSeen.Time
 
 	// verify ping endpoint
 	patrol.apps["http"].config.KeepAlive = APP_KEEPALIVE_PID_APP
@@ -428,11 +439,32 @@ func TestAPI(t *testing.T) {
 	unittest.Equals(t, len(result.KeyValue), 0)
 
 	// compare last seen
-	unittest.Equals(t, t5.Equal(result.LastSeen.Time), false)
+	unittest.Equals(t, t4.Equal(result.LastSeen.Time), false)
 
 	// change keep alive
-	t6 := result.LastSeen.Time
+	t5 := result.LastSeen.Time
 
+	request = &API_Request{
+		ID:    "http",
+		Group: "app",
+		Ping:  true,
+	}
+	result = patrol.API(request)
+	unittest.Equals(t, len(result.Errors), 0)
+	unittest.Equals(t, result.ID, "http")
+	unittest.Equals(t, result.Group, "app")
+	unittest.Equals(t, result.PID, 1)
+	unittest.Equals(t, result.Started.IsZero(), false)
+	unittest.Equals(t, result.LastSeen.IsZero(), false)
+	unittest.Equals(t, result.Disabled, false)
+	unittest.Equals(t, result.Shutdown, false)
+	unittest.Equals(t, len(result.History), 0)
+	unittest.Equals(t, len(result.KeyValue), 0)
+
+	// compare last seen
+	unittest.Equals(t, t5.Equal(result.LastSeen.Time), false)
+
+	t6 := result.LastSeen.Time
 	request = &API_Request{
 		ID:    "http",
 		Group: "app",
@@ -453,11 +485,12 @@ func TestAPI(t *testing.T) {
 	// compare last seen
 	unittest.Equals(t, t6.Equal(result.LastSeen.Time), false)
 
-	t7 := result.LastSeen.Time
+	// change PID
 	request = &API_Request{
 		ID:    "http",
 		Group: "app",
 		Ping:  true,
+		PID:   2,
 	}
 	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 0)
@@ -471,8 +504,72 @@ func TestAPI(t *testing.T) {
 	unittest.Equals(t, len(result.History), 0)
 	unittest.Equals(t, len(result.KeyValue), 0)
 
-	// compare last seen
-	unittest.Equals(t, t7.Equal(result.LastSeen.Time), false)
+	// copy result
+	result_old := result
+
+	request = &API_Request{
+		ID:    "http",
+		Group: "app",
+		Ping:  true,
+	}
+	result = patrol.API(request)
+	unittest.Equals(t, len(result.Errors), 0)
+	unittest.Equals(t, result.ID, "http")
+	unittest.Equals(t, result.Group, "app")
+	unittest.Equals(t, result.PID, 2)
+	unittest.Equals(t, result.Started.IsZero(), false)
+	unittest.IsNil(t, result.LastSeen)
+	unittest.Equals(t, result.Disabled, false)
+	unittest.Equals(t, result.Shutdown, false)
+	unittest.Equals(t, len(result.History), 1)
+	unittest.Equals(t, len(result.KeyValue), 0)
+	unittest.Equals(t, result.History[0].PID, 1)
+	unittest.Equals(t, result.History[0].Started.Equal(result_old.Started.Time), true)
+	unittest.Equals(t, result.History[0].LastSeen.Equal(result_old.LastSeen.Time), true)
+	unittest.Equals(t, result.History[0].Stopped.IsZero(), false)
+	unittest.Equals(t, result.History[0].Disabled, false)
+	unittest.Equals(t, result.History[0].Restart, false)
+	unittest.Equals(t, result.History[0].RunOnce, false)
+	unittest.Equals(t, result.History[0].Shutdown, false)
+	unittest.Equals(t, result.History[0].ExitCode, 0)
+	unittest.Equals(t, len(result.History[0].KeyValue), len(result_old.KeyValue))
+
+	// ping again
+	request = &API_Request{
+		ID:    "http",
+		Group: "app",
+		Ping:  true,
+		PID:   2,
+	}
+	result = patrol.API(request)
+	unittest.Equals(t, len(result.Errors), 0)
+	unittest.Equals(t, result.ID, "http")
+	unittest.Equals(t, result.Group, "app")
+	unittest.Equals(t, result.PID, 2)
+	unittest.Equals(t, result.Started.IsZero(), false)
+	unittest.Equals(t, result.LastSeen.IsZero(), false)
+	unittest.Equals(t, result.Disabled, false)
+	unittest.Equals(t, result.Shutdown, false)
+	unittest.Equals(t, len(result.History), 1)
+	unittest.Equals(t, len(result.KeyValue), 0)
+	// ping again
+	request = &API_Request{
+		ID:    "http",
+		Group: "app",
+		Ping:  true,
+		PID:   2,
+	}
+	result = patrol.API(request)
+	unittest.Equals(t, len(result.Errors), 0)
+	unittest.Equals(t, result.ID, "http")
+	unittest.Equals(t, result.Group, "app")
+	unittest.Equals(t, result.PID, 2)
+	unittest.Equals(t, result.Started.IsZero(), false)
+	unittest.Equals(t, result.LastSeen.IsZero(), false)
+	unittest.Equals(t, result.Disabled, false)
+	unittest.Equals(t, result.Shutdown, false)
+	unittest.Equals(t, len(result.History), 1)
+	unittest.Equals(t, len(result.KeyValue), 0)
 
 	request = &API_Request{
 		ID:    "ssh",
