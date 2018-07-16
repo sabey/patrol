@@ -37,9 +37,12 @@ type ConfigService struct {
 	Name string `json:"name,omitempty"`
 	// Service is the name of the executable and/or parameter
 	Service string `json:"service,omitempty"`
-	// these are a list of valid exit codes to ignore when returned from "service * status"
+	// these are a list of valid exit codes to ignore when returned from "service * start/status/stop/restart"
 	// by default 0 is always ignored, it is assumed to mean that the service is running
-	IgnoreExitCodes []uint8 `json:"ignore-exit-codes,omitempty"`
+	IgnoreExitCodesStart   []uint8 `json:"ignore-exit-codes-start,omitempty"`
+	IgnoreExitCodesStatus  []uint8 `json:"ignore-exit-codes-status,omitempty"`
+	IgnoreExitCodesStop    []uint8 `json:"ignore-exit-codes-stop,omitempty"`
+	IgnoreExitCodesRestart []uint8 `json:"ignore-exit-codes-restart,omitempty"`
 	// if Disabled is true the Service won't be executed until enabled
 	// the only way to enable this once loaded is to use an API or restart Patrol
 	// if Disabled is true the Service MAY be running, we will just avoid watching it!
@@ -93,20 +96,32 @@ func (self *ConfigService) Clone() *ConfigService {
 		ManagementStatusParameter:  self.ManagementStatusParameter,
 		ManagementStopParameter:    self.ManagementStopParameter,
 		ManagementRestartParameter: self.ManagementRestartParameter,
-		Name:               self.Name,
-		Service:            self.Service,
-		IgnoreExitCodes:    make([]uint8, 0, len(self.IgnoreExitCodes)),
-		Disabled:           self.Disabled,
-		KeyValueClear:      self.KeyValueClear,
-		TriggerStart:       self.TriggerStart,
-		TriggerStarted:     self.TriggerStarted,
-		TriggerStartFailed: self.TriggerStartFailed,
-		TriggerRunning:     self.TriggerRunning,
-		TriggerDisabled:    self.TriggerDisabled,
-		TriggerClosed:      self.TriggerClosed,
+		Name:                   self.Name,
+		Service:                self.Service,
+		IgnoreExitCodesStart:   make([]uint8, 0, len(self.IgnoreExitCodesStart)),
+		IgnoreExitCodesStatus:  make([]uint8, 0, len(self.IgnoreExitCodesStatus)),
+		IgnoreExitCodesStop:    make([]uint8, 0, len(self.IgnoreExitCodesStop)),
+		IgnoreExitCodesRestart: make([]uint8, 0, len(self.IgnoreExitCodesRestart)),
+		Disabled:               self.Disabled,
+		KeyValueClear:          self.KeyValueClear,
+		TriggerStart:           self.TriggerStart,
+		TriggerStarted:         self.TriggerStarted,
+		TriggerStartFailed:     self.TriggerStartFailed,
+		TriggerRunning:         self.TriggerRunning,
+		TriggerDisabled:        self.TriggerDisabled,
+		TriggerClosed:          self.TriggerClosed,
 	}
-	for _, i := range self.IgnoreExitCodes {
-		config.IgnoreExitCodes = append(config.IgnoreExitCodes, i)
+	for _, i := range self.IgnoreExitCodesStart {
+		config.IgnoreExitCodesStart = append(config.IgnoreExitCodesStart, i)
+	}
+	for _, i := range self.IgnoreExitCodesStatus {
+		config.IgnoreExitCodesStatus = append(config.IgnoreExitCodesStatus, i)
+	}
+	for _, i := range self.IgnoreExitCodesStop {
+		config.IgnoreExitCodesStop = append(config.IgnoreExitCodesStop, i)
+	}
+	for _, i := range self.IgnoreExitCodesRestart {
+		config.IgnoreExitCodesRestart = append(config.IgnoreExitCodesRestart, i)
 	}
 	return config
 }
@@ -160,8 +175,51 @@ func (self *ConfigService) Validate() error {
 	if len(self.Name) > SERVICE_NAME_MAXLENGTH {
 		return ERR_SERVICE_NAME_MAXLENGTH
 	}
+	// start
 	exists := make(map[uint8]struct{})
-	for _, ec := range self.IgnoreExitCodes {
+	for _, ec := range self.IgnoreExitCodesStart {
+		if ec == 0 {
+			// can't ignore 0
+			return ERR_SERVICE_INVALID_EXITCODE
+		}
+		if _, ok := exists[ec]; ok {
+			// exit code already exists
+			return ERR_SERVICE_DUPLICATE_EXITCODE
+		}
+		// does not exist
+		exists[ec] = struct{}{}
+	}
+	// status
+	exists = make(map[uint8]struct{})
+	for _, ec := range self.IgnoreExitCodesStatus {
+		if ec == 0 {
+			// can't ignore 0
+			return ERR_SERVICE_INVALID_EXITCODE
+		}
+		if _, ok := exists[ec]; ok {
+			// exit code already exists
+			return ERR_SERVICE_DUPLICATE_EXITCODE
+		}
+		// does not exist
+		exists[ec] = struct{}{}
+	}
+	// stop
+	exists = make(map[uint8]struct{})
+	for _, ec := range self.IgnoreExitCodesStop {
+		if ec == 0 {
+			// can't ignore 0
+			return ERR_SERVICE_INVALID_EXITCODE
+		}
+		if _, ok := exists[ec]; ok {
+			// exit code already exists
+			return ERR_SERVICE_DUPLICATE_EXITCODE
+		}
+		// does not exist
+		exists[ec] = struct{}{}
+	}
+	// restart
+	exists = make(map[uint8]struct{})
+	for _, ec := range self.IgnoreExitCodesRestart {
 		if ec == 0 {
 			// can't ignore 0
 			return ERR_SERVICE_INVALID_EXITCODE

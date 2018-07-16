@@ -29,12 +29,43 @@ func TestPatrolService(t *testing.T) {
 
 	service.Name = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 
-	service.IgnoreExitCodes = []uint8{0}
+	// start
+	service.IgnoreExitCodesStart = []uint8{0}
 	unittest.Equals(t, service.Validate(), ERR_SERVICE_INVALID_EXITCODE)
 
-	service.IgnoreExitCodes = []uint8{1, 1}
+	service.IgnoreExitCodesStart = []uint8{1, 1}
 	unittest.Equals(t, service.Validate(), ERR_SERVICE_DUPLICATE_EXITCODE)
 
-	service.IgnoreExitCodes = []uint8{2}
+	service.IgnoreExitCodesStart = []uint8{2}
+	unittest.IsNil(t, service.Validate())
+
+	// status
+	service.IgnoreExitCodesStatus = []uint8{0}
+	unittest.Equals(t, service.Validate(), ERR_SERVICE_INVALID_EXITCODE)
+
+	service.IgnoreExitCodesStatus = []uint8{1, 1}
+	unittest.Equals(t, service.Validate(), ERR_SERVICE_DUPLICATE_EXITCODE)
+
+	service.IgnoreExitCodesStatus = []uint8{2}
+	unittest.IsNil(t, service.Validate())
+
+	// stop
+	service.IgnoreExitCodesStop = []uint8{0}
+	unittest.Equals(t, service.Validate(), ERR_SERVICE_INVALID_EXITCODE)
+
+	service.IgnoreExitCodesStop = []uint8{1, 1}
+	unittest.Equals(t, service.Validate(), ERR_SERVICE_DUPLICATE_EXITCODE)
+
+	service.IgnoreExitCodesStop = []uint8{2}
+	unittest.IsNil(t, service.Validate())
+
+	// restart
+	service.IgnoreExitCodesRestart = []uint8{0}
+	unittest.Equals(t, service.Validate(), ERR_SERVICE_INVALID_EXITCODE)
+
+	service.IgnoreExitCodesRestart = []uint8{1, 1}
+	unittest.Equals(t, service.Validate(), ERR_SERVICE_DUPLICATE_EXITCODE)
+
+	service.IgnoreExitCodesRestart = []uint8{2}
 	unittest.IsNil(t, service.Validate())
 }

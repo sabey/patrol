@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os/exec"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -244,10 +245,32 @@ func (self *Service) startService() error {
 	} else {
 		cmd = exec.CommandContext(ctx, fmt.Sprintf("/etc/init.d/%s", self.config.Service), p)
 	}
+	// check exit code
 	if err := cmd.Run(); err != nil {
-		// failed to start
-		return err
+		f := false
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			// The program has exited with an exit code != 0
+			// This works on both Unix and Windows.
+			// Although package syscall is generally platform dependent,
+			// WaitStatus is defined for both Unix and Windows and in both cases has an ExitStatus() method with the same signature.
+			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+				exit_code := uint8(status.ExitStatus())
+				for _, i := range self.config.IgnoreExitCodesStart {
+					if i == exit_code {
+						// error code is ignored
+						f = true
+						break
+					}
+				}
+			}
+		}
+		if !f {
+			// unknown error
+			// DO NOT CLOSE, WE'RE UNSURE IF WE'VE RESTARTED!!!
+			return err
+		}
 	}
+	// exit code 0
 	// started!
 	self.started = now
 	return nil
@@ -263,11 +286,31 @@ func (self *Service) isServiceRunning() error {
 	} else {
 		cmd = exec.CommandContext(ctx, fmt.Sprintf("/etc/init.d/%s", self.config.Service), p)
 	}
+	// check exit code
 	if err := cmd.Run(); err != nil {
-		// NOT running!
-		// close service
-		self.close()
-		return err
+		f := false
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			// The program has exited with an exit code != 0
+			// This works on both Unix and Windows.
+			// Although package syscall is generally platform dependent,
+			// WaitStatus is defined for both Unix and Windows and in both cases has an ExitStatus() method with the same signature.
+			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+				exit_code := uint8(status.ExitStatus())
+				for _, i := range self.config.IgnoreExitCodesStatus {
+					if i == exit_code {
+						// error code is ignored
+						f = true
+						break
+					}
+				}
+			}
+		}
+		if !f {
+			// unknown error
+			// close service
+			self.close()
+			return err
+		}
 	}
 	// running!
 	now := time.Now()
@@ -297,9 +340,30 @@ func (self *Service) stopService() error {
 	} else {
 		cmd = exec.CommandContext(ctx, fmt.Sprintf("/etc/init.d/%s", self.config.Service), p)
 	}
+	// check exit code
 	if err := cmd.Run(); err != nil {
-		// failed to stop
-		return err
+		f := false
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			// The program has exited with an exit code != 0
+			// This works on both Unix and Windows.
+			// Although package syscall is generally platform dependent,
+			// WaitStatus is defined for both Unix and Windows and in both cases has an ExitStatus() method with the same signature.
+			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+				exit_code := uint8(status.ExitStatus())
+				for _, i := range self.config.IgnoreExitCodesStop {
+					if i == exit_code {
+						// error code is ignored
+						f = true
+						break
+					}
+				}
+			}
+		}
+		if !f {
+			// unknown error
+			// DO NOT CLOSE, WE'RE UNSURE IF WE'RE STOPPED!!!
+			return err
+		}
 	}
 	// stopped!
 	// close service
@@ -317,11 +381,32 @@ func (self *Service) restartService() error {
 	} else {
 		cmd = exec.CommandContext(ctx, fmt.Sprintf("/etc/init.d/%s", self.config.Service), p)
 	}
+	// check exit code
 	if err := cmd.Run(); err != nil {
-		// failed to stop
-		return err
+		f := false
+		if exiterr, ok := err.(*exec.ExitError); ok {
+			// The program has exited with an exit code != 0
+			// This works on both Unix and Windows.
+			// Although package syscall is generally platform dependent,
+			// WaitStatus is defined for both Unix and Windows and in both cases has an ExitStatus() method with the same signature.
+			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
+				exit_code := uint8(status.ExitStatus())
+				for _, i := range self.config.IgnoreExitCodesRestart {
+					if i == exit_code {
+						// error code is ignored
+						f = true
+						break
+					}
+				}
+			}
+		}
+		if !f {
+			// unknown error
+			// DO NOT CLOSE, WE'RE UNSURE IF WE'VE RESTARTED!!!
+			return err
+		}
 	}
-	// stopped!
+	// restarted!
 	// close service
 	self.close()
 	return nil
