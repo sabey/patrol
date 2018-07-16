@@ -51,6 +51,11 @@ type ConfigApp struct {
 	Disabled bool `json:"disabled,omitempty"`
 	// clear keyvalue on new instance?
 	KeyValueClear bool `json:"keyvalue-clear,omitempty"`
+	// optionally, we can require a secret for ping and modification to succeed
+	// we're not going to throttle comparing our secret
+	// choose a secret with enough bits of uniqueness and don't make your patrol instance public
+	// if you are worried about your secret being public, use TLS and HTTP, DO NOT USE UDP!!!
+	Secret string `json:"ping-secret,omitempty"`
 	////////////
 	// os.Cmd //
 	////////////
@@ -179,6 +184,7 @@ func (self *ConfigApp) Clone() *ConfigApp {
 		PIDVerify:            self.PIDVerify,
 		Disabled:             self.Disabled,
 		KeyValueClear:        self.KeyValueClear,
+		Secret:               self.Secret,
 		ExecuteTimeout:       self.ExecuteTimeout,
 		Args:                 make([]string, 0, len(self.Args)),
 		Env:                  make([]string, 0, len(self.Env)),
@@ -250,6 +256,9 @@ func (self *ConfigApp) Validate() error {
 		if !IsPathClean(self.PIDPath) {
 			return ERR_APP_PIDPATH_UNCLEAN
 		}
+	}
+	if len(self.Secret) > SECRET_MAX_LENGTH {
+		return ERR_SECRET_TOOLONG
 	}
 	if self.ExecuteTimeout < 0 {
 		return ERR_APP_EXECUTETIMEOUT_INVALID

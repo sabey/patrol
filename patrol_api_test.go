@@ -665,4 +665,55 @@ func TestAPI(t *testing.T) {
 	unittest.Equals(t, result.Shutdown, false)
 	unittest.Equals(t, len(result.History), 0)
 	unittest.Equals(t, len(result.KeyValue), 0)
+
+	// secret test
+	// app
+	patrol.apps["http"].config.Secret = "abc"
+	request = &API_Request{
+		ID:    "http",
+		Group: "app",
+	}
+	result = patrol.API(request)
+	unittest.Equals(t, len(result.Errors), 1)
+	unittest.Equals(t, result.Errors[0], "Secret Invalid")
+	request = &API_Request{
+		ID:     "http",
+		Group:  "app",
+		Secret: "ABC",
+	}
+	result = patrol.API(request)
+	unittest.Equals(t, len(result.Errors), 1)
+	unittest.Equals(t, result.Errors[0], "Secret Invalid")
+	request = &API_Request{
+		ID:     "http",
+		Group:  "app",
+		Secret: "abc",
+	}
+	result = patrol.API(request)
+	unittest.Equals(t, len(result.Errors), 0)
+
+	// service
+	patrol.services["ssh"].config.Secret = "abc"
+	request = &API_Request{
+		ID:    "ssh",
+		Group: "service",
+	}
+	result = patrol.API(request)
+	unittest.Equals(t, len(result.Errors), 1)
+	unittest.Equals(t, result.Errors[0], "Secret Invalid")
+	request = &API_Request{
+		ID:     "ssh",
+		Group:  "service",
+		Secret: "ABC",
+	}
+	result = patrol.API(request)
+	unittest.Equals(t, len(result.Errors), 1)
+	unittest.Equals(t, result.Errors[0], "Secret Invalid")
+	request = &API_Request{
+		ID:     "ssh",
+		Group:  "service",
+		Secret: "abc",
+	}
+	result = patrol.API(request)
+	unittest.Equals(t, len(result.Errors), 0)
 }

@@ -49,6 +49,11 @@ type ConfigService struct {
 	Disabled bool `json:"disabled,omitempty"`
 	// clear keyvalue on new instance?
 	KeyValueClear bool `json:"keyvalue-clear,omitempty"`
+	// optionally, we can require a secret for ping and modification to succeed
+	// we're not going to throttle comparing our secret
+	// choose a secret with enough bits of uniqueness and don't make your patrol instance public
+	// if you are worried about your secret being public, use TLS and HTTP, DO NOT USE UDP!!!
+	Secret string `json:"ping-secret,omitempty"`
 	// these are NOT supported with JSON for obvious reasons
 	// these will have to be set manually!!!
 	// Triggers
@@ -104,6 +109,7 @@ func (self *ConfigService) Clone() *ConfigService {
 		IgnoreExitCodesRestart: make([]uint8, 0, len(self.IgnoreExitCodesRestart)),
 		Disabled:               self.Disabled,
 		KeyValueClear:          self.KeyValueClear,
+		Secret:                 self.Secret,
 		TriggerStart:           self.TriggerStart,
 		TriggerStarted:         self.TriggerStarted,
 		TriggerStartFailed:     self.TriggerStartFailed,
@@ -174,6 +180,9 @@ func (self *ConfigService) Validate() error {
 	}
 	if len(self.Name) > SERVICE_NAME_MAXLENGTH {
 		return ERR_SERVICE_NAME_MAXLENGTH
+	}
+	if len(self.Secret) > SECRET_MAX_LENGTH {
+		return ERR_SECRET_TOOLONG
 	}
 	// start
 	exists := make(map[uint8]struct{})

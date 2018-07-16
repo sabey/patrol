@@ -7,6 +7,10 @@ import (
 	"strings"
 )
 
+const (
+	SECRET_MAX_LENGTH = 128
+)
+
 var (
 	ERR_CONFIG_NIL              = fmt.Errorf("Config was NIL")
 	ERR_PATROL_EMPTY            = fmt.Errorf("Patrol Apps and Servers were both empty")
@@ -20,6 +24,7 @@ var (
 	ERR_SERVICE_LABEL_DUPLICATE = fmt.Errorf("Duplicate Service Label")
 	ERR_LISTEN_HTTP_EMPTY       = fmt.Errorf("HTTP Listeners were empty, we required one to exist!")
 	ERR_LISTEN_UDP_EMPTY        = fmt.Errorf("UDP Listeners were empty, we required one to exist!")
+	ERR_SECRET_TOOLONG          = fmt.Errorf("Secret Longer than %d bytes", SECRET_MAX_LENGTH)
 )
 
 func LoadConfig(

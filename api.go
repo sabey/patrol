@@ -30,6 +30,7 @@ type API_Request struct {
 	History         bool                   `json:"history,omitempty"`
 	KeyValue        map[string]interface{} `json:"keyvalue,omitempty"`
 	KeyValueReplace bool                   `json:"keyvalue-replace,omitempty"`
+	Secret          string                 `json:"secret,omitempty"`
 }
 
 func (self *API_Request) IsValid() bool {

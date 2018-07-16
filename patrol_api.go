@@ -54,6 +54,15 @@ func (self *Patrol) api(
 				},
 			}
 		}
+		// validate secret
+		if a.config.Secret != "" &&
+			a.config.Secret != request.Secret {
+			return &API_Response{
+				Errors: []string{
+					"Secret Invalid",
+				},
+			}
+		}
 		// validate endpoint
 		// validate ping
 		if request.Ping {
@@ -115,6 +124,15 @@ func (self *Patrol) api(
 			return &API_Response{
 				Errors: []string{
 					"Unknown Service",
+				},
+			}
+		}
+		// validate secret
+		if s.config.Secret != "" &&
+			s.config.Secret != request.Secret {
+			return &API_Response{
+				Errors: []string{
+					"Secret Invalid",
 				},
 			}
 		}
