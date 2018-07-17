@@ -31,6 +31,12 @@ type API_Request struct {
 	KeyValue        map[string]interface{} `json:"keyvalue,omitempty"`
 	KeyValueReplace bool                   `json:"keyvalue-replace,omitempty"`
 	Secret          string                 `json:"secret,omitempty"`
+	// CAS is OPTIONAL
+	// if CAS is NOT set: we will ignore it and we will override all of our values and state!!!
+	// if CAS IS SET: we will only override values if our CAS is correct!
+	// HOWEVER, we will ALWAYS update our PING/lastseen value REGARDLESS OF CAS!!!
+	// updating `Ping, LastSeen, or PID` will cause our CAS to be incremented!!!
+	CAS uint64 `json:"cas,omitempty"`
 }
 
 func (self *API_Request) IsValid() bool {
@@ -58,6 +64,19 @@ type API_Response struct {
 	History  []*History             `json:"history,omitempty"`
 	KeyValue map[string]interface{} `json:"keyvalue,omitempty"`
 	Errors   []string               `json:"errors,omitempty"`
+	// like all of our other values, CAS is a snapshot of our PREVIOUS state
+	// we are NEVER going to return our current CAS after modifying our current state or values
+	// the reason for this is that if a modification request is successful, we know our CAS is CAS + 1
+	// if we were to take a snapshot, update our object, then get our CAS ---
+	// we could never actually verify what our current state or values are!!!
+	// the reason for this has to do with triggers, we NEVER KNOW when we're going to unlock and/or execute triggers!!!
+	// there are going to be very many scenarios where an API request is made and our CAS is updated more than once!!!
+	// we're never in a scenario where we take a snapshot, update, and get our CAS WITHOUT UNLOCKING!!!
+	// if we want to make a clean CAS, we should do a REQUEST without modifying anything(no ping), then do a secondary request without incrementing CAS!
+	CAS uint64 `json:"cas,omitempty"`
+	// cas-valid is the only exception to data that references our previous snapshot
+	// we need to know if our CAS was successful or not!
+	CASValid bool `json:"cas-valid,omitempty"`
 }
 
 func (self *API_Response) IsValid() bool {

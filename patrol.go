@@ -1,6 +1,7 @@
 package patrol
 
 import (
+	"github.com/sabey/patrol/cas"
 	"sync"
 	"time"
 )
@@ -35,20 +36,18 @@ func CreatePatrol(
 	}
 	for id, app := range config.Apps {
 		p.apps[id] = &App{
-			id:       id,
-			patrol:   p,
-			config:   app,
-			disabled: app.Disabled,
-			keyvalue: make(map[string]interface{}),
+			id:     id,
+			patrol: p,
+			config: app,
+			o:      cas.CreateApp(app.Disabled),
 		}
 	}
 	for id, service := range config.Services {
 		p.services[id] = &Service{
-			id:       id,
-			patrol:   p,
-			config:   service,
-			disabled: service.Disabled,
-			keyvalue: make(map[string]interface{}),
+			id:     id,
+			patrol: p,
+			config: service,
+			o:      cas.CreateService(service.Disabled),
 		}
 	}
 	if config.TriggerStart != nil {

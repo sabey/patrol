@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/sabey/patrol/cas"
 	"io/ioutil"
 	"log"
 	"os"
@@ -12,7 +13,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -74,30 +74,10 @@ type App struct {
 	id     string // we want a reference to our parent ID
 	config *ConfigApp
 	// unsafe
-	keyvalue    map[string]interface{}
-	history     []*History
-	started     time.Time
-	started_log time.Time
-	lastseen    time.Time
-	// disabled takes its initial value from our config
-	disabled bool
-	// restart will ALWAYS cause our app to become enabled!
-	restart bool
-	// run once has to be consumed
-	// once our app is running we will instantly consume runonce, once stopped we will become disabled
-	// if our app is stopped, we will start and consume runonce
-	run_once          bool
-	run_once_consumed bool
-	// pid is set by all but only used by APP_KEEPALIVE_PID_APP to verify a process is running
-	// last PID we've found and verified
-	// the maximum PID value on a 32 bit system is 32767
-	// the maximum PID value on a 64 bit system is 2^22
-	// systems by default will default to 32767, but we should support up to uint32
-	pid uint32
-	// we're going to save our exit code for history
-	// this is only supported by APP_KEEPALIVE_PID_PATROL
-	exit_code uint8
-	mu        sync.RWMutex
+	// history will wrap our cas Objects Lock/RLock mutex
+	// history is NOT included in our cas Object because we didn't want to restructure Patrol
+	history []*History
+	o       *cas.App
 }
 
 func (self *App) IsValid() bool {
@@ -115,114 +95,105 @@ func (self *App) GetPatrol() *Patrol {
 func (self *App) GetConfig() *ConfigApp {
 	return self.config.Clone()
 }
+func (self *App) GetCAS() uint64 {
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.o.GetCAS()
+}
 func (self *App) IsRunning() bool {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-	return !self.started.IsZero()
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return !self.o.GetStarted().IsZero()
 }
 func (self *App) GetStarted() time.Time {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-	return self.started
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.o.GetStarted()
 }
 func (self *App) GetStartedLog() time.Time {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-	return self.started_log
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.o.GetStartedLog()
 }
 func (self *App) GetLastSeen() time.Time {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-	return self.lastseen
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.o.GetLastSeen()
 }
 func (self *App) IsDisabled() bool {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-	return self.disabled
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.o.IsDisabled()
 }
 func (self *App) IsRestart() bool {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-	return self.restart
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.o.IsRestart()
 }
 func (self *App) IsRunOnce() bool {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-	return self.run_once
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.o.IsRunOnce()
 }
 func (self *App) IsRunOnceConsumed() bool {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-	return self.run_once_consumed
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.o.IsRunOnceConsumed()
 }
 func (self *App) Toggle(
 	toggle uint8,
 ) {
-	self.mu.Lock()
+	self.o.Lock()
 	self.toggle(toggle)
-	self.mu.Unlock()
+	self.o.Unlock()
 }
 func (self *App) Enable() {
-	self.mu.Lock()
+	self.o.Lock()
 	self.toggle(API_TOGGLE_STATE_ENABLE)
-	self.mu.Unlock()
+	self.o.Unlock()
 }
 func (self *App) Disable() {
-	self.mu.Lock()
+	self.o.Lock()
 	self.toggle(API_TOGGLE_STATE_DISABLE)
-	self.mu.Unlock()
+	self.o.Unlock()
 }
 func (self *App) Restart() {
-	self.mu.Lock()
+	self.o.Lock()
 	self.toggle(API_TOGGLE_STATE_RESTART)
-	self.mu.Unlock()
+	self.o.Unlock()
 }
 func (self *App) EnableRunOnce() {
-	self.mu.Lock()
+	self.o.Lock()
 	self.toggle(API_TOGGLE_STATE_RUNONCE_ENABLE)
-	self.mu.Unlock()
+	self.o.Unlock()
 }
 func (self *App) DisableRunOnce() {
-	self.mu.Lock()
+	self.o.Lock()
 	self.toggle(API_TOGGLE_STATE_RUNONCE_DISABLE)
-	self.mu.Unlock()
+	self.o.Unlock()
 }
 func (self *App) GetKeyValue() map[string]interface{} {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-	return self.getKeyValue()
-}
-func (self *App) getKeyValue() map[string]interface{} {
-	// dereference
-	kv := make(map[string]interface{})
-	for k, v := range self.keyvalue {
-		kv[k] = v
-	}
-	return kv
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.o.GetKeyValue()
 }
 func (self *App) SetKeyValue(
 	kv map[string]interface{},
 ) {
-	self.mu.Lock()
-	for k, v := range kv {
-		self.keyvalue[k] = v
-	}
-	self.mu.Unlock()
+	self.o.Lock()
+	self.o.SetKeyValue(kv)
+	self.o.Unlock()
 }
 func (self *App) ReplaceKeyValue(
 	kv map[string]interface{},
 ) {
-	self.mu.Lock()
-	self.keyvalue = make(map[string]interface{})
-	// dereference
-	for k, v := range kv {
-		self.keyvalue[k] = v
-	}
-	self.mu.Unlock()
+	self.o.Lock()
+	self.o.ReplaceKeyValue(kv)
+	self.o.Unlock()
 }
 func (self *App) GetHistory() []*History {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
+	self.o.RLock()
+	defer self.o.RUnlock()
 	return self.getHistory()
 }
 func (self *App) getHistory() []*History {
@@ -234,8 +205,9 @@ func (self *App) getHistory() []*History {
 	return history
 }
 func (self *App) close() {
-	if !self.started.IsZero() {
+	if !self.o.GetStarted().IsZero() {
 		// save history
+		self.o.Increment() // we have to increment for modifying History
 		if len(self.history) >= self.patrol.config.History {
 			self.history = self.history[1:]
 		}
@@ -243,65 +215,65 @@ func (self *App) close() {
 			// we're always going to log PID even if there's a chance it doesn't exist
 			// for example if our APP controls the PID, when we ping to check if its alive, it would override PID with something incorrect
 			// pid is garaunteed to always exist for APP_KEEPALIVE_PID_PATROL
-			PID: self.pid,
+			PID: self.o.GetPID(),
 			Stopped: &Timestamp{
 				Time: time.Now(),
 				f:    self.patrol.config.Timestamp,
 			},
-			Disabled: self.disabled,
-			Restart:  self.restart,
+			Disabled: self.o.IsDisabled(),
+			Restart:  self.o.IsRestart(),
 			// we want to know if we CONSUMED run_once, not if run_once is currently true!!!
-			RunOnce:  self.run_once_consumed,
+			RunOnce:  self.o.IsRunOnceConsumed(),
 			Shutdown: self.patrol.shutdown,
 			// exit code is only garaunteed to exist for APP_KEEPALIVE_PID_PATROL
-			ExitCode: self.exit_code,
-			KeyValue: self.getKeyValue(),
+			ExitCode: self.o.GetExitCode(),
+			KeyValue: self.o.GetKeyValue(),
 		}
-		if !self.started.IsZero() {
+		if !self.o.GetStarted().IsZero() {
 			h.Started = &Timestamp{
-				Time: self.started,
+				Time: self.o.GetStarted(),
 				f:    self.patrol.config.Timestamp,
 			}
 		}
-		if !self.lastseen.IsZero() {
+		if !self.o.GetLastSeen().IsZero() {
 			h.LastSeen = &Timestamp{
-				Time: self.lastseen,
+				Time: self.o.GetLastSeen(),
 				f:    self.patrol.config.Timestamp,
 			}
 		}
 		self.history = append(self.history, h)
 		// reset values
-		self.started = time.Time{}
-		self.lastseen = time.Time{}
+		self.o.SetStarted(time.Time{})
+		self.o.SetLastSeen(time.Time{})
 		// do not unset started_log!!!
 		// if our App forks, our App might still be using this log
-		if self.run_once_consumed {
+		if self.o.IsRunOnceConsumed() {
 			// we have to disable our app!
 			self.toggle(API_TOGGLE_STATE_DISABLE)
 		}
-		self.pid = 0
-		self.exit_code = 0
+		self.o.SetPID(0)
+		self.o.SetExitCode(0)
 		if self.config.KeyValueClear {
 			// clear keyvalues
-			self.keyvalue = make(map[string]interface{})
+			self.o.ReplaceKeyValue(nil)
 		}
 		// we're not going to use a goroutine here
 		// we're assumed to be in a lock
 		// we're going to unlock and then relock so that we can call our trigger
 		if self.config.TriggerClosed != nil {
-			self.mu.Unlock()
+			self.o.Unlock()
 			self.config.TriggerClosed(self, h)
-			self.mu.Lock()
+			self.o.Lock()
 		}
 	}
 }
 func (self *App) startApp() error {
 	now := time.Now()
 	// consume restart
-	self.restart = false
+	self.o.SetRestart(false)
 	// consume runonce
-	if self.run_once {
-		self.run_once_consumed = true
+	if self.o.IsRunOnce() {
+		self.o.SetRunOnceConsumed(true)
 	}
 	// we can't set WorkingDirectory and only execute just Binary
 	// we must use the absolute path of WorkingDirectory and Binary for execute to work properly
@@ -443,12 +415,12 @@ func (self *App) startApp() error {
 		return err
 	}
 	// started!
-	self.started = now
-	self.started_log = now
+	self.o.SetStarted(now)
+	self.o.SetStartedLog(now)
 	if self.config.KeepAlive == APP_KEEPALIVE_PID_PATROL {
 		// we're going to copy our PID from our process
 		// any other keep alive method we're just going to ignore the process PID and assume it's wrong
-		self.pid = uint32(cmd.Process.Pid)
+		self.o.SetPID(uint32(cmd.Process.Pid))
 	}
 	// we have to call Wait() on our process and read the exit code
 	// if we don't we will end up with a zombie process
@@ -478,12 +450,12 @@ func (self *App) startApp() error {
 		}
 		// currently this can't race because we ALWAYS check isAppRunning() before startApp() AND we only use tick() to start services
 		// this logic should never change, so it's not something to worry about right now
-		self.mu.Lock()
+		self.o.Lock()
 		// set exit code
-		self.exit_code = exit_code
+		self.o.SetExitCode(exit_code)
 		// close app
 		self.close()
-		self.mu.Unlock()
+		self.o.Unlock()
 	}()
 	return nil
 }
@@ -493,9 +465,9 @@ func (self *App) isAppRunning() error {
 		self.config.KeepAlive == APP_KEEPALIVE_UDP {
 		// check if we've been pinged recently
 		// if lastseen + ping timeout is NOT after now we know that we've timedout
-		if self.lastseen.IsZero() {
+		if self.o.GetLastSeen().IsZero() {
 			// use started timestamp
-			if time.Now().After(self.started.Add(time.Duration(self.patrol.config.PingTimeout) * time.Second)) {
+			if time.Now().After(self.o.GetStarted().Add(time.Duration(self.patrol.config.PingTimeout) * time.Second)) {
 				// expired
 				// close app
 				self.close()
@@ -503,7 +475,7 @@ func (self *App) isAppRunning() error {
 			}
 		} else {
 			// use lastseen
-			if time.Now().After(self.lastseen.Add(time.Duration(self.patrol.config.PingTimeout) * time.Second)) {
+			if time.Now().After(self.o.GetLastSeen().Add(time.Duration(self.patrol.config.PingTimeout) * time.Second)) {
 				// expired
 				// close app
 				self.close()
@@ -514,7 +486,7 @@ func (self *App) isAppRunning() error {
 		return nil
 	} else if self.config.KeepAlive == APP_KEEPALIVE_PID_PATROL {
 		// check our internal state
-		if self.started.IsZero() {
+		if self.o.GetStarted().IsZero() {
 			// not running
 			// we do NOT have to save history!!!
 			// our teardown function after cmd.Wait() will save our history!
@@ -552,43 +524,43 @@ func (self *App) isAppRunning() error {
 	// running!
 	now := time.Now()
 	// compare our PID
-	if self.pid > 0 {
+	if self.o.GetPID() > 0 {
 		// App PID exists
-		if pid != self.pid {
+		if pid != self.o.GetPID() {
 			// App PID does not match
 			// close previous App
 			self.close()
 			// set PID
-			self.pid = pid
+			self.o.SetPID(pid)
 			// this is a new App
-			self.started = now
+			self.o.SetStarted(now)
 			// we need to call our started trigger
 			if self.config.TriggerStarted != nil {
-				self.mu.Unlock()
+				self.o.Unlock()
 				self.config.TriggerStarted(self)
-				self.mu.Lock()
+				self.o.Lock()
 			}
 		} else {
 			// PID matches
 			// app was previously started
-			self.lastseen = now
+			self.o.SetLastSeen(now)
 		}
 	} else {
 		// App PID does not exist
 		// set PID
-		self.pid = pid
-		if self.started.IsZero() {
+		self.o.SetPID(pid)
+		if self.o.GetStarted().IsZero() {
 			// this is a new App
-			self.started = now
+			self.o.SetStarted(now)
 			// we need to call our started trigger
 			if self.config.TriggerStarted != nil {
-				self.mu.Unlock()
+				self.o.Unlock()
 				self.config.TriggerStarted(self)
-				self.mu.Lock()
+				self.o.Lock()
 			}
 		} else {
 			// app was previously started
-			self.lastseen = now
+			self.o.SetLastSeen(now)
 		}
 	}
 	return nil
@@ -597,8 +569,8 @@ func (self *App) signalStop() {
 	// we're going to signal our App if our App is disabled OR if we're shutting down Patrol
 	// we can only do this if we have a PID, we don't care what keepalive method we use so long as a PID exists
 	// we're going to discard any errors
-	if self.pid > 0 {
-		if process, err := os.FindProcess(int(self.pid)); err == nil {
+	if self.o.GetPID() > 0 {
+		if process, err := os.FindProcess(int(self.o.GetPID())); err == nil {
 			// we're going to keep our signals different than syscall.SIGTERM
 			// we're going to leave syscall.SIGTERM to be reserved for Patrol ACTUALLY closing!
 			if self.patrol.shutdown {
@@ -640,13 +612,13 @@ func (self *App) getPID() (
 }
 func (self *App) GetPID() uint32 {
 	// this may not be the latest PID but it's the latest PID we're aware of
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-	return self.pid
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.o.GetPID()
 }
 func (self *App) logDir() string {
 	return logDir(
-		self.started_log,
+		self.o.GetStartedLog(),
 		self.config.WorkingDirectory,
 		self.config.LogDirectory,
 	)
@@ -669,11 +641,13 @@ func logDir(
 	)
 }
 func (self *App) GetStdoutLog() string {
+	self.o.RLock()
+	defer self.o.RUnlock()
 	if self.config.Stdout != nil {
 		// we don't know where the log is located
 		return ""
 	}
-	if self.started_log.IsZero() {
+	if self.o.GetStartedLog().IsZero() {
 		// we never started this app
 		return ""
 	}
@@ -681,14 +655,16 @@ func (self *App) GetStdoutLog() string {
 	// THIS IS OUR LAST KNOWN LOCATION
 	// IF WE FORK OUR PROCESS, OUR PROCESS MAY NOT PASS STDOUT/STDERR - THEN THIS IS USELESS!!
 	// in our GUI we will offer a fallback to list all of our logs ideally
-	return fmt.Sprintf("%s/%d.stdout.log", self.logDir(), self.started_log.UnixNano())
+	return fmt.Sprintf("%s/%d.stdout.log", self.logDir(), self.o.GetStartedLog().UnixNano())
 }
 func (self *App) GetStderrLog() string {
+	self.o.RLock()
+	defer self.o.RUnlock()
 	if self.config.Stderr != nil {
 		// we don't know where the log is located
 		return ""
 	}
-	if self.started_log.IsZero() {
+	if self.o.GetStartedLog().IsZero() {
 		// we never started this app
 		return ""
 	}
@@ -696,5 +672,5 @@ func (self *App) GetStderrLog() string {
 	// THIS IS OUR LAST KNOWN LOCATION
 	// IF WE FORK OUR PROCESS, OUR PROCESS MAY NOT PASS STDOUT/STDERR - THEN THIS IS USELESS!!
 	// in our GUI we will offer a fallback to list all of our logs ideally
-	return fmt.Sprintf("%s/%d.stderr.log", self.logDir(), self.started_log.UnixNano())
+	return fmt.Sprintf("%s/%d.stderr.log", self.logDir(), self.o.GetStartedLog().UnixNano())
 }

@@ -108,13 +108,13 @@ func (self *Patrol) api(
 				}
 			}
 		}
-		a.mu.Lock()
+		a.o.Lock()
 		// we need to process our response before we update our object
 		// we're interested in returning our previous state, since we know what our new state will be
 		response := a.apiResponse(endpoint)
 		// handle request
-		a.apiRequest(request)
-		a.mu.Unlock()
+		response.CASValid = a.apiRequest(request)
+		a.o.Unlock()
 		return response
 	} else if request.Group == "service" ||
 		request.Group == "services" {
@@ -136,13 +136,13 @@ func (self *Patrol) api(
 				},
 			}
 		}
-		s.mu.Lock()
+		s.o.Lock()
 		// we need to process our response before we update our object
 		// we're interested in returning our previous state, since we know what our new state will be
 		response := s.apiResponse(endpoint)
 		// handle request
-		s.apiRequest(request)
-		s.mu.Unlock()
+		response.CASValid = s.apiRequest(request)
+		s.o.Unlock()
 		return response
 	}
 	return &API_Response{

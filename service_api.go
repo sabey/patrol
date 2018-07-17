@@ -2,76 +2,84 @@ package patrol
 
 func (self *Service) apiRequest(
 	request *API_Request,
-) {
-	// keyvalue
-	if request.KeyValueReplace {
-		// replace
-		// dereference
-		kv := make(map[string]interface{})
-		for k, v := range request.KeyValue {
-			kv[k] = v
+) bool {
+	// CAS Attributes:
+	//
+	cas_valid := true
+	if request.CAS > 0 &&
+		request.CAS != self.o.GetCAS() {
+		// CAS does not match!
+		cas_valid = false
+	}
+	if cas_valid {
+		// keyvalue
+		if request.KeyValueReplace {
+			// replace
+			self.o.ReplaceKeyValue(request.KeyValue)
+		} else {
+			// merge
+			if len(request.KeyValue) > 0 {
+				self.o.SetKeyValue(request.KeyValue)
+			}
 		}
-		self.keyvalue = kv
-	} else {
-		// merge
-		for k, v := range request.KeyValue {
-			self.keyvalue[k] = v
+		// toggle
+		if request.Toggle > 0 {
+			self.toggle(request.Toggle)
 		}
 	}
-	// toggle
-	if request.Toggle > 0 {
-		self.toggle(request.Toggle)
-	}
+	// Non-CAS Attributes:
+	return cas_valid
 }
 func (self *Service) toggle(
 	toggle uint8,
 ) {
 	if toggle == API_TOGGLE_STATE_ENABLE {
-		self.disabled = false
+		self.o.SetDisabled(false)
 	} else if toggle == API_TOGGLE_STATE_DISABLE {
-		self.disabled = true
-		self.restart = false
-		self.run_once = false
-		self.run_once_consumed = false
+		self.o.SetDisabled(true)
+		self.o.SetRestart(false)
+		self.o.SetRunOnce(false)
+		self.o.SetRunOnceConsumed(false)
 	} else if toggle == API_TOGGLE_STATE_RESTART {
-		self.disabled = false
-		self.restart = true
-		self.run_once = false
-		self.run_once_consumed = false
+		self.o.SetDisabled(false)
+		self.o.SetRestart(true)
+		self.o.SetRunOnce(false)
+		self.o.SetRunOnceConsumed(false)
 	} else if toggle == API_TOGGLE_STATE_RUNONCE_ENABLE {
-		self.run_once = true
-		if !self.started.IsZero() {
+		self.o.SetRunOnce(true)
+		if !self.o.GetStarted().IsZero() {
 			// we're already running, we must consume run_once
-			self.run_once_consumed = true
+			self.o.SetRunOnceConsumed(true)
 		}
 	} else if toggle == API_TOGGLE_STATE_RUNONCE_DISABLE {
-		self.run_once = false
-		self.run_once_consumed = false
+		self.o.SetRunOnce(false)
+		self.o.SetRunOnceConsumed(false)
 	} else if toggle == API_TOGGLE_STATE_ENABLE_RUNONCE_ENABLE {
-		self.disabled = false
-		self.run_once = true
-		if !self.started.IsZero() {
+		self.o.SetDisabled(false)
+		self.o.SetRunOnce(true)
+		if !self.o.GetStarted().IsZero() {
 			// we're already running, we must consume run_once
-			self.run_once_consumed = true
+			self.o.SetRunOnceConsumed(true)
 		}
 	} else if toggle == API_TOGGLE_STATE_ENABLE_RUNONCE_DISABLE {
-		self.disabled = false
-		self.run_once = false
-		self.run_once_consumed = false
+		self.o.SetDisabled(false)
+		self.o.SetRunOnce(false)
+		self.o.SetRunOnceConsumed(false)
 	}
 }
 func (self *Service) Snapshot() *API_Response {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
+	self.o.RLock()
+	defer self.o.RUnlock()
 	return self.apiResponse(api_endpoint_snapshot)
 }
 func (self *Service) apiResponse(
 	endpoint uint8,
 ) *API_Response {
 	result := &API_Response{
-		Disabled: self.disabled,
-		Restart:  self.restart,
-		RunOnce:  self.run_once,
+		Disabled: self.o.IsDisabled(),
+		Restart:  self.o.IsRestart(),
+		RunOnce:  self.o.IsRunOnce(),
+		CAS:      self.o.GetCAS(),
 	}
 	if endpoint != api_endpoint_status {
 		// we don't need these values for individual status objects
@@ -90,17 +98,17 @@ func (self *Service) apiResponse(
 		if endpoint != api_endpoint_snapshot {
 			result.History = self.getHistory()
 		}
-		result.KeyValue = self.getKeyValue()
+		result.KeyValue = self.o.GetKeyValue()
 	}
-	if !self.started.IsZero() {
+	if !self.o.GetStarted().IsZero() {
 		result.Started = &Timestamp{
-			Time: self.started,
+			Time: self.o.GetStarted(),
 			f:    self.patrol.config.Timestamp,
 		}
 	}
-	if !self.lastseen.IsZero() {
+	if !self.o.GetLastSeen().IsZero() {
 		result.LastSeen = &Timestamp{
-			Time: self.lastseen,
+			Time: self.o.GetLastSeen(),
 			f:    self.patrol.config.Timestamp,
 		}
 	}

@@ -13,12 +13,12 @@ func (self *Patrol) signalStopApps() {
 		wg.Add(1)
 		go func(app *App) {
 			defer wg.Done()
-			app.mu.Lock()
+			app.o.Lock()
 			if app.isAppRunning() == nil {
 				log.Printf("./patrol.signalStopApps(): App ID: %s is running - Signalling!\n", app.id)
 				app.signalStop()
 			}
-			app.mu.Unlock()
+			app.o.Unlock()
 		}(app)
 	}
 	wg.Wait()
@@ -40,7 +40,7 @@ func (self *Patrol) runApps() {
 			// we're not going to defer unlocking our app mutex, we're going to occasionally unlock and allow our tiggers to run
 			// for example when we check if our app is running, if we call close() we want to trigger our close right away
 			// if we do not unlock, we could then call startApp() without having ever signalled our close trigger
-			app.mu.Lock()
+			app.o.Lock()
 			// we have to check if we're running on every loop, regardless if we're disabled
 			// there's a chance our app could become enabled should we check and find we're running
 			// if we aren't running and we call close() and call our close trigger
@@ -54,7 +54,7 @@ func (self *Patrol) runApps() {
 					log.Printf("./patrol.runApps(): App ID: %s is running AND we're shutting down! - Signalling!\n", app.id)
 					app.signalStop()
 				}
-				app.mu.Unlock()
+				app.o.Unlock()
 				// we're done!
 				return
 			}
@@ -64,43 +64,43 @@ func (self *Patrol) runApps() {
 				// we're running!
 				log.Printf("./patrol.runApps(): App ID: %s is running\n", app.id)
 				if app.config.TriggerRunning != nil {
-					app.mu.Unlock()
+					app.o.Unlock()
 					app.config.TriggerRunning(app)
-					app.mu.Lock()
+					app.o.Lock()
 				}
 				// if we're disabled or restarting we're going to signal our apps to stop
-				if app.restart {
+				if app.o.IsRestart() {
 					// signal our app to stop
 					log.Printf("./patrol.runApps(): App ID: %s is running AND we're restarting! - Signalling!\n", app.id)
 					app.signalStop()
 					// we will only attempt to restart ONCE, we consume restart even if we fail to restart!
-					app.restart = false
+					app.o.SetRestart(false)
 					// it's going to ultimately be up to our App to exit
 					// we're not going to immediately attempt to start our app on this tick
 					// in fact, if our app chooses not to exit we will do nothing!
-				} else if app.disabled {
+				} else if app.o.IsDisabled() {
 					// signal our app to stop
 					log.Printf("./patrol.runApps(): App ID: %s is running AND is disabled! - Signalling!\n", app.id)
 					app.signalStop()
 				}
-				app.mu.Unlock()
+				app.o.Unlock()
 				// we're done!
 				return
 			} else {
 				// we aren't running
-				if app.disabled {
+				if app.o.IsDisabled() {
 					// app is disabled
 					log.Printf("./patrol.runApps(): App ID: %s is not running AND is disabled! - Reason: \"%s\"\n", app.id, is_running_err)
 					if app.config.TriggerDisabled != nil {
-						app.mu.Unlock()
+						app.o.Unlock()
 						app.config.TriggerDisabled(app)
-						app.mu.Lock()
+						app.o.Lock()
 					}
 					// check if we're still disabled
-					if app.disabled {
+					if app.o.IsDisabled() {
 						// still disabled!!!
 						// nothing we can do
-						app.mu.Unlock()
+						app.o.Unlock()
 						// we're done!
 						return
 					}
@@ -117,7 +117,7 @@ func (self *Patrol) runApps() {
 					app.config.KeepAlive == APP_KEEPALIVE_UDP {
 					if !can_start_pingable {
 						// we can't start this service yet
-						app.mu.Unlock()
+						app.o.Unlock()
 						// we're done!
 						log.Printf("./patrol.runApps(): App ID: %s is Pingable and can't be started yet, ignoring!\n", app.id)
 						return
@@ -127,13 +127,13 @@ func (self *Patrol) runApps() {
 			// time to start our app!
 			log.Printf("./patrol.runApps(): App ID: %s starting!\n", app.id)
 			if app.config.TriggerStart != nil {
-				app.mu.Unlock()
+				app.o.Unlock()
 				app.config.TriggerStart(app)
-				app.mu.Lock()
+				app.o.Lock()
 				// this will be our LAST chance to check disabled!!
-				if app.disabled {
+				if app.o.IsDisabled() {
 					// disabled!!!
-					app.mu.Unlock()
+					app.o.Unlock()
 					// we're done!
 					log.Printf("./patrol.runApps(): App ID: %s can't start, we're disabled!\n", app.id)
 					return
@@ -144,7 +144,7 @@ func (self *Patrol) runApps() {
 				log.Printf("./patrol.runApps(): App ID: %s failed to start: \"%s\"\n", app.id, err)
 				// call start failed trigger
 				if app.config.TriggerStartFailed != nil {
-					app.mu.Unlock()
+					app.o.Unlock()
 					// we're done!
 					app.config.TriggerStartFailed(app)
 					return
@@ -153,13 +153,13 @@ func (self *Patrol) runApps() {
 				log.Printf("./patrol.runApps(): App ID: %s started\n", app.id)
 				// call started trigger
 				if app.config.TriggerStarted != nil {
-					app.mu.Unlock()
+					app.o.Unlock()
 					// we're done!
 					app.config.TriggerStarted(app)
 					return
 				}
 			}
-			app.mu.Unlock()
+			app.o.Unlock()
 			// we're done!
 			return
 		}(app)

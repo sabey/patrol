@@ -16,7 +16,7 @@ func (self *Patrol) runServices() {
 			// we're not going to defer unlocking our service mutex, we're going to occasionally unlock and allow our tiggers to run
 			// for example when we check if our service is running, if we call close() we want to trigger our close right away
 			// if we do not unlock, we could then call startService() without having ever signalled our close trigger
-			service.mu.Lock()
+			service.o.Lock()
 			// we have to check if we're running on every loop, regardless if we're disabled
 			// there's a chance our service could become enabled should we check and find we're running
 			// if we aren't running and we call close() and call our close trigger
@@ -27,12 +27,12 @@ func (self *Patrol) runServices() {
 				// we're running!
 				log.Printf("./patrol.runServices(): Service ID: %s is running\n", service.id)
 				if service.config.TriggerRunning != nil {
-					service.mu.Unlock()
+					service.o.Unlock()
 					service.config.TriggerRunning(service)
-					service.mu.Lock()
+					service.o.Lock()
 				}
 				// if we're disabled or restarting we're going to signal our services to stop
-				if service.restart {
+				if service.o.IsRestart() {
 					// signal our service to restart
 					log.Printf("./patrol.runServices(): Service ID: %s is running AND we're restarting! - Restarting!\n", service.id)
 					if err := service.restartService(); err != nil {
@@ -41,11 +41,11 @@ func (self *Patrol) runServices() {
 						log.Printf("./patrol.runServices(): Service ID: %s restarted\n", service.id)
 					}
 					// we will only attempt to restart ONCE, we consume restart even if we fail to restart!
-					service.restart = false
+					service.o.SetRestart(false)
 					// it's going to ultimately be up to our Service to exit
 					// we're not going to immediately attempt to start our app on this tick
 					// in fact, if our app chooses not to exit we will do nothing!
-				} else if service.disabled {
+				} else if service.o.IsDisabled() {
 					// signal our service to stop
 					log.Printf("./patrol.runServices(): Service ID: %s is running AND is disabled! - Stopping!\n", service.id)
 					if err := service.stopService(); err != nil {
@@ -54,24 +54,24 @@ func (self *Patrol) runServices() {
 						log.Printf("./patrol.runServices(): Service ID: %s stopped\n", service.id)
 					}
 				}
-				service.mu.Unlock()
+				service.o.Unlock()
 				// we're done!
 				return
 			} else {
 				// we aren't running
-				if service.disabled {
+				if service.o.IsDisabled() {
 					// service is disabled
 					log.Printf("./patrol.runServices(): Service ID: %s is not running AND is disabled! - Reason: \"%s\"\n", service.id, is_running_err)
 					if service.config.TriggerDisabled != nil {
-						service.mu.Unlock()
+						service.o.Unlock()
 						service.config.TriggerDisabled(service)
-						service.mu.Lock()
+						service.o.Lock()
 					}
 					// check if we're still disabled
-					if service.disabled {
+					if service.o.IsDisabled() {
 						// still disabled!!!
 						// nothing we can do
-						service.mu.Unlock()
+						service.o.Unlock()
 						// we're done!
 						return
 					}
@@ -85,13 +85,13 @@ func (self *Patrol) runServices() {
 			// time to start our service!
 			log.Printf("./patrol.runServices(): Service ID: %s starting!\n", service.id)
 			if service.config.TriggerStart != nil {
-				service.mu.Unlock()
+				service.o.Unlock()
 				service.config.TriggerStart(service)
-				service.mu.Lock()
+				service.o.Lock()
 				// this will be our LAST chance to check disabled!!
-				if service.disabled {
+				if service.o.IsDisabled() {
 					// disabled!!!
-					service.mu.Unlock()
+					service.o.Unlock()
 					// we're done!
 					log.Printf("./patrol.runServices(): Service ID: %s can't start, we're disabled!\n", service.id)
 					return
@@ -102,7 +102,7 @@ func (self *Patrol) runServices() {
 				log.Printf("./patrol.runServices(): Service ID: %s failed to start: \"%s\"\n", service.id, err)
 				// call start failed trigger
 				if service.config.TriggerStartFailed != nil {
-					service.mu.Unlock()
+					service.o.Unlock()
 					// we're done!
 					service.config.TriggerStartFailed(service)
 					return
@@ -111,13 +111,13 @@ func (self *Patrol) runServices() {
 				log.Printf("./patrol.runServices(): Service ID: %s started\n", service.id)
 				// call started trigger
 				if service.config.TriggerStarted != nil {
-					service.mu.Unlock()
+					service.o.Unlock()
 					// we're done!
 					service.config.TriggerStarted(service)
 					return
 				}
 			}
-			service.mu.Unlock()
+			service.o.Unlock()
 			// we're done!
 			return
 		}(service)

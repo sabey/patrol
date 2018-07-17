@@ -3,8 +3,8 @@ package patrol
 import (
 	"context"
 	"fmt"
+	"github.com/sabey/patrol/cas"
 	"os/exec"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -31,20 +31,10 @@ type Service struct {
 	id     string // we want a reference to our parent ID
 	config *ConfigService
 	// unsafe
-	keyvalue map[string]interface{}
-	history  []*History
-	started  time.Time
-	lastseen time.Time
-	// disabled takes its initial value from our config
-	disabled bool
-	// restart will ALWAYS cause our service to become enabled!
-	restart bool
-	// run once has to be consumed
-	// once our service is running we will instantly consume runonce, once stopped we will become disabled
-	// if our service is stopped, we will start and consume runonce
-	run_once          bool
-	run_once_consumed bool
-	mu                sync.RWMutex
+	// history will wrap our cas Objects Lock/RLock mutex
+	// history is NOT included in our cas Object because we didn't want to restructure Patrol
+	history []*History
+	o       *cas.Service
 }
 
 func (self *Service) IsValid() bool {
@@ -62,109 +52,100 @@ func (self *Service) GetPatrol() *Patrol {
 func (self *Service) GetConfig() *ConfigService {
 	return self.config.Clone()
 }
+func (self *Service) GetCAS() uint64 {
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.o.GetCAS()
+}
 func (self *Service) IsRunning() bool {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-	return !self.started.IsZero()
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return !self.o.GetStarted().IsZero()
 }
 func (self *Service) GetStarted() time.Time {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-	return self.started
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.o.GetStarted()
 }
 func (self *Service) GetLastSeen() time.Time {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-	return self.lastseen
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.o.GetLastSeen()
 }
 func (self *Service) IsDisabled() bool {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-	return self.disabled
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.o.IsDisabled()
 }
 func (self *Service) IsRestart() bool {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-	return self.restart
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.o.IsRestart()
 }
 func (self *Service) IsRunOnce() bool {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-	return self.run_once
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.o.IsRunOnce()
 }
 func (self *Service) IsRunOnceConsumed() bool {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-	return self.run_once_consumed
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.o.IsRunOnceConsumed()
 }
 func (self *Service) Toggle(
 	toggle uint8,
 ) {
-	self.mu.Lock()
+	self.o.Lock()
 	self.toggle(toggle)
-	self.mu.Unlock()
+	self.o.Unlock()
 }
 func (self *Service) Enable() {
-	self.mu.Lock()
+	self.o.Lock()
 	self.toggle(API_TOGGLE_STATE_ENABLE)
-	self.mu.Unlock()
+	self.o.Unlock()
 }
 func (self *Service) Disable() {
-	self.mu.Lock()
+	self.o.Lock()
 	self.toggle(API_TOGGLE_STATE_DISABLE)
-	self.mu.Unlock()
+	self.o.Unlock()
 }
 func (self *Service) Restart() {
-	self.mu.Lock()
+	self.o.Lock()
 	self.toggle(API_TOGGLE_STATE_RESTART)
-	self.mu.Unlock()
+	self.o.Unlock()
 }
 func (self *Service) EnableRunOnce() {
-	self.mu.Lock()
+	self.o.Lock()
 	self.toggle(API_TOGGLE_STATE_RUNONCE_ENABLE)
-	self.mu.Unlock()
+	self.o.Unlock()
 }
 func (self *Service) DisableRunOnce() {
-	self.mu.Lock()
+	self.o.Lock()
 	self.toggle(API_TOGGLE_STATE_RUNONCE_DISABLE)
-	self.mu.Unlock()
+	self.o.Unlock()
 }
 func (self *Service) GetKeyValue() map[string]interface{} {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
-	return self.getKeyValue()
-}
-func (self *Service) getKeyValue() map[string]interface{} {
-	// dereference
-	kv := make(map[string]interface{})
-	for k, v := range self.keyvalue {
-		kv[k] = v
-	}
-	return kv
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.o.GetKeyValue()
 }
 func (self *Service) SetKeyValue(
 	kv map[string]interface{},
 ) {
-	self.mu.Lock()
-	for k, v := range kv {
-		self.keyvalue[k] = v
-	}
-	self.mu.Unlock()
+	self.o.Lock()
+	self.o.SetKeyValue(kv)
+	self.o.Unlock()
 }
 func (self *Service) ReplaceKeyValue(
 	kv map[string]interface{},
 ) {
-	self.mu.Lock()
-	self.keyvalue = make(map[string]interface{})
-	// dereference
-	for k, v := range kv {
-		self.keyvalue[k] = v
-	}
-	self.mu.Unlock()
+	self.o.Lock()
+	self.o.ReplaceKeyValue(kv)
+	self.o.Unlock()
 }
 func (self *Service) GetHistory() []*History {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
+	self.o.RLock()
+	defer self.o.RUnlock()
 	return self.getHistory()
 }
 func (self *Service) getHistory() []*History {
@@ -176,8 +157,9 @@ func (self *Service) getHistory() []*History {
 	return history
 }
 func (self *Service) close() {
-	if !self.started.IsZero() {
-		// close service
+	if !self.o.GetStarted().IsZero() {
+		// save history
+		self.o.Increment() // we have to increment for modifying History
 		if len(self.history) >= self.patrol.config.History {
 			self.history = self.history[1:]
 		}
@@ -186,54 +168,54 @@ func (self *Service) close() {
 				Time: time.Now(),
 				f:    self.patrol.config.Timestamp,
 			},
-			Disabled: self.disabled,
-			Restart:  self.restart,
+			Disabled: self.o.IsDisabled(),
+			Restart:  self.o.IsRestart(),
 			// we want to know if we CONSUMED run_once, not if run_once is currently true!!!
-			RunOnce:  self.run_once_consumed,
+			RunOnce:  self.o.IsRunOnceConsumed(),
 			Shutdown: self.patrol.shutdown,
-			KeyValue: self.getKeyValue(),
+			KeyValue: self.o.GetKeyValue(),
 		}
-		if !self.started.IsZero() {
+		if !self.o.GetStarted().IsZero() {
 			h.Started = &Timestamp{
-				Time: self.started,
+				Time: self.o.GetStarted(),
 				f:    self.patrol.config.Timestamp,
 			}
 		}
-		if !self.lastseen.IsZero() {
+		if !self.o.GetLastSeen().IsZero() {
 			h.LastSeen = &Timestamp{
-				Time: self.lastseen,
+				Time: self.o.GetLastSeen(),
 				f:    self.patrol.config.Timestamp,
 			}
 		}
 		self.history = append(self.history, h)
 		// reset values
-		self.started = time.Time{}
-		self.lastseen = time.Time{}
-		if self.run_once_consumed {
+		self.o.SetStarted(time.Time{})
+		self.o.SetLastSeen(time.Time{})
+		if self.o.IsRunOnceConsumed() {
 			// we have to disable our app!
 			self.toggle(API_TOGGLE_STATE_DISABLE)
 		}
 		if self.config.KeyValueClear {
 			// clear keyvalues
-			self.keyvalue = make(map[string]interface{})
+			self.o.ReplaceKeyValue(nil)
 		}
 		// we're not going to use a goroutine here
 		// we're assumed to be in a lock
 		// we're going to unlock and then relock so that we can call our trigger
 		if self.config.TriggerClosed != nil {
-			self.mu.Unlock()
+			self.o.Unlock()
 			self.config.TriggerClosed(self, h)
-			self.mu.Lock()
+			self.o.Lock()
 		}
 	}
 }
 func (self *Service) startService() error {
 	now := time.Now()
 	// consume restart
-	self.restart = false
+	self.o.SetRestart(false)
 	// consume runonce
-	if self.run_once {
-		self.run_once_consumed = true
+	if self.o.IsRunOnce() {
+		self.o.SetRunOnceConsumed(true)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
 	defer cancel()
@@ -272,7 +254,7 @@ func (self *Service) startService() error {
 	}
 	// exit code 0
 	// started!
-	self.started = now
+	self.o.SetStarted(now)
 	return nil
 }
 func (self *Service) isServiceRunning() error {
@@ -314,18 +296,18 @@ func (self *Service) isServiceRunning() error {
 	}
 	// running!
 	now := time.Now()
-	if self.started.IsZero() {
+	if self.o.GetStarted().IsZero() {
 		// Service was not running
-		self.started = now
+		self.o.SetStarted(now)
 		// we need to call our started trigger
 		if self.config.TriggerStarted != nil {
-			self.mu.Unlock()
+			self.o.Unlock()
 			self.config.TriggerStarted(self)
-			self.mu.Lock()
+			self.o.Lock()
 		}
 	} else {
 		// service was previously started
-		self.lastseen = now
+		self.o.SetLastSeen(now)
 	}
 	return nil
 }

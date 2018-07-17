@@ -6,8 +6,36 @@ import (
 
 func (self *App) apiRequest(
 	request *API_Request,
-) {
+) bool {
 	now := time.Now()
+	// CAS / Non-Ping Attributes:
+	//
+	// we have to update our CAS BEFORE we update `lastseen, started, pid` and other ping values
+	// these and other similar variables will modify our CAS!!!
+	cas_valid := true
+	if request.CAS > 0 &&
+		request.CAS != self.o.GetCAS() {
+		// CAS does not match!
+		cas_valid = false
+	}
+	if cas_valid {
+		// keyvalue
+		if request.KeyValueReplace {
+			// replace
+			self.o.ReplaceKeyValue(request.KeyValue)
+		} else {
+			// merge
+			if len(request.KeyValue) > 0 {
+				self.o.SetKeyValue(request.KeyValue)
+			}
+		}
+		// toggle
+		if request.Toggle > 0 {
+			self.toggle(request.Toggle)
+		}
+	}
+	// Non-CAS / Ping Attributes:
+	//
 	// we need to compare our PID to our previous PID
 	// if our PID does not match, we need to close our previous App and create a new App
 	// if PID exists we're assumed to be in a Ping, so we can call triggers
@@ -16,60 +44,60 @@ func (self *App) apiRequest(
 	if request.PID > 0 {
 		// request PID exists
 		// PID requires a ping, so all ping triggers are safe
-		if self.pid > 0 {
+		if self.o.GetPID() > 0 {
 			// App PID exists
-			if request.PID != self.pid {
+			if request.PID != self.o.GetPID() {
 				// App PID does not match
 				// this is a new App
 				// close previous App
 				self.close()
 				// start a new App
-				self.started = now
+				self.o.SetStarted(now)
 				// set PID
-				self.pid = request.PID
+				self.o.SetPID(request.PID)
 				// call trigger
 				if self.config.TriggerStartedPinged != nil {
 					// we're going to unlock and call our trigger
-					self.mu.Unlock()
+					self.o.Unlock()
 					self.config.TriggerStartedPinged(self)
-					self.mu.Lock()
+					self.o.Lock()
 				}
 			} else {
 				// PID matches
 				// set lastseen
-				self.lastseen = now
+				self.o.SetLastSeen(now)
 				// call trigger
 				if self.config.TriggerPinged != nil {
 					// we're going to unlock and call our trigger
-					self.mu.Unlock()
+					self.o.Unlock()
 					self.config.TriggerPinged(self)
-					self.mu.Lock()
+					self.o.Lock()
 				}
 			}
 		} else {
 			// App PID does not exist
 			// set PID
-			self.pid = request.PID
-			if self.started.IsZero() {
+			self.o.SetPID(request.PID)
+			if self.o.GetStarted().IsZero() {
 				// this is a new App
-				self.started = now
+				self.o.SetStarted(now)
 				// call trigger
 				if self.config.TriggerStartedPinged != nil {
 					// we're going to unlock and call our trigger
-					self.mu.Unlock()
+					self.o.Unlock()
 					self.config.TriggerStartedPinged(self)
-					self.mu.Lock()
+					self.o.Lock()
 				}
 			} else {
 				// app was previously started
 				// set lastseen
-				self.lastseen = now
+				self.o.SetLastSeen(now)
 				// call trigger
 				if self.config.TriggerPinged != nil {
 					// we're going to unlock and call our trigger
-					self.mu.Unlock()
+					self.o.Unlock()
 					self.config.TriggerPinged(self)
-					self.mu.Lock()
+					self.o.Lock()
 				}
 			}
 		}
@@ -77,88 +105,69 @@ func (self *App) apiRequest(
 		// request PID doesn't exist
 		if request.Ping {
 			// set lastseen
-			self.lastseen = now
+			self.o.SetLastSeen(now)
 			// call trigger
 			if self.config.TriggerPinged != nil {
 				// we're going to unlock and call our trigger
-				self.mu.Unlock()
+				self.o.Unlock()
 				self.config.TriggerPinged(self)
-				self.mu.Lock()
+				self.o.Lock()
 			}
 		}
 	}
-	// non ping attributes:
-	// TODO: add optional CAS
-	// keyvalue
-	if request.KeyValueReplace {
-		// replace
-		// dereference
-		kv := make(map[string]interface{})
-		for k, v := range request.KeyValue {
-			kv[k] = v
-		}
-		self.keyvalue = kv
-	} else {
-		// merge
-		for k, v := range request.KeyValue {
-			self.keyvalue[k] = v
-		}
-	}
-	// toggle
-	if request.Toggle > 0 {
-		self.toggle(request.Toggle)
-	}
+	return cas_valid
 }
 func (self *App) toggle(
 	toggle uint8,
 ) {
 	if toggle == API_TOGGLE_STATE_ENABLE {
-		self.disabled = false
+		self.o.SetDisabled(false)
 	} else if toggle == API_TOGGLE_STATE_DISABLE {
-		self.disabled = true
-		self.restart = false
-		self.run_once = false
-		self.run_once_consumed = false
+		self.o.SetDisabled(true)
+		self.o.SetRestart(false)
+		self.o.SetRunOnce(false)
+		self.o.SetRunOnceConsumed(false)
 	} else if toggle == API_TOGGLE_STATE_RESTART {
-		self.disabled = false
-		self.restart = true
-		self.run_once = false
-		self.run_once_consumed = false
+		self.o.SetDisabled(false)
+		self.o.SetRestart(true)
+		self.o.SetRunOnce(false)
+		self.o.SetRunOnceConsumed(false)
 	} else if toggle == API_TOGGLE_STATE_RUNONCE_ENABLE {
-		self.run_once = true
-		if !self.started.IsZero() {
+		self.o.SetRunOnce(true)
+		if !self.o.GetStarted().IsZero() {
 			// we're already running, we must consume run_once
-			self.run_once_consumed = true
+			self.o.SetRunOnceConsumed(true)
 		}
 	} else if toggle == API_TOGGLE_STATE_RUNONCE_DISABLE {
-		self.run_once = false
-		self.run_once_consumed = false
+		self.o.SetRunOnce(false)
+		self.o.SetRunOnceConsumed(false)
 	} else if toggle == API_TOGGLE_STATE_ENABLE_RUNONCE_ENABLE {
-		self.disabled = false
-		self.run_once = true
-		if !self.started.IsZero() {
+		self.o.SetDisabled(false)
+		self.o.SetRunOnce(true)
+		if !self.o.GetStarted().IsZero() {
 			// we're already running, we must consume run_once
-			self.run_once_consumed = true
+			self.o.SetRunOnceConsumed(true)
 		}
 	} else if toggle == API_TOGGLE_STATE_ENABLE_RUNONCE_DISABLE {
-		self.disabled = false
-		self.run_once = false
-		self.run_once_consumed = false
+		self.o.SetDisabled(false)
+		self.o.SetRunOnce(false)
+		self.o.SetRunOnceConsumed(false)
 	}
 }
 func (self *App) Snapshot() *API_Response {
-	self.mu.RLock()
-	defer self.mu.RUnlock()
+	self.o.RLock()
+	defer self.o.RUnlock()
 	return self.apiResponse(api_endpoint_snapshot)
 }
 func (self *App) apiResponse(
 	endpoint uint8,
 ) *API_Response {
 	result := &API_Response{
-		PID:      self.pid,
-		Disabled: self.disabled,
-		Restart:  self.restart,
-		RunOnce:  self.run_once,
+		PID:      self.o.GetPID(),
+		Disabled: self.o.IsDisabled(),
+		Restart:  self.o.IsRestart(),
+		RunOnce:  self.o.IsRunOnce(),
+		CAS:      self.o.GetCAS(),
 	}
 	if endpoint != api_endpoint_status {
 		// we don't need these values for individual status objects
@@ -177,17 +186,17 @@ func (self *App) apiResponse(
 		if endpoint != api_endpoint_snapshot {
 			result.History = self.getHistory()
 		}
-		result.KeyValue = self.getKeyValue()
+		result.KeyValue = self.o.GetKeyValue()
 	}
-	if !self.started.IsZero() {
+	if !self.o.GetStarted().IsZero() {
 		result.Started = &Timestamp{
-			Time: self.started,
+			Time: self.o.GetStarted(),
 			f:    self.patrol.config.Timestamp,
 		}
 	}
-	if !self.lastseen.IsZero() {
+	if !self.o.GetLastSeen().IsZero() {
 		result.LastSeen = &Timestamp{
-			Time: self.lastseen,
+			Time: self.o.GetLastSeen(),
 			f:    self.patrol.config.Timestamp,
 		}
 	}

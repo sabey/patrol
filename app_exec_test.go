@@ -3,6 +3,7 @@ package patrol
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sabey/patrol/cas"
 	"log"
 	"net"
 	"net/http"
@@ -16,6 +17,17 @@ import (
 
 func TestAppExecPatrolPID(t *testing.T) {
 	log.Println("TestAppExecPatrolPID")
+
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-time.After(time.Second * 45):
+			log.Fatalln("failed to complete TestAppExecPatrolPID")
+		case <-done:
+			return
+		}
+	}()
 
 	wd, err := os.Getwd()
 	unittest.IsNil(t, err)
@@ -41,17 +53,22 @@ func TestAppExecPatrolPID(t *testing.T) {
 			Stderr: os.Stderr,
 			Stdout: os.Stdout,
 		},
+		o: cas.CreateApp(false),
 	}
 
 	// this will fail if testapp is somehow running
 	// testapp has a self destruct function, it should be about 30 seconds
+	app.o.Lock()
 	unittest.NotNil(t, app.isAppRunning())
 	unittest.IsNil(t, app.startApp())
+	app.o.Unlock()
 	// we have to wait a second or two for Start() to run AND THEN have testapp write our PID to file
 	// if we do not wait testapp could run and not yet write PID
 	fmt.Println("waiting for app")
 	<-time.After(time.Second * 3)
+	app.o.Lock()
 	unittest.IsNil(t, app.isAppRunning())
+	app.o.Unlock()
 	fmt.Println("waited for app")
 
 	// we have to signal our app to stop, just incase we were to run this unittest again
@@ -76,8 +93,8 @@ func TestAppExecPatrolPID(t *testing.T) {
 	fmt.Println("app closed")
 
 	// as soon as our app is closed we have to use a mutex since our closing function runs in a goroutine
-	app.mu.Lock()
 	// check that our process is dead
+	app.o.Lock()
 	unittest.NotNil(t, app.isAppRunning())
 	// check our history
 	unittest.Equals(t, len(app.history), 1)
@@ -87,7 +104,7 @@ func TestAppExecPatrolPID(t *testing.T) {
 	unittest.Equals(t, app.history[0].Stopped.IsZero(), false)
 	unittest.Equals(t, app.history[0].Shutdown, false)
 	unittest.Equals(t, app.history[0].ExitCode, 0)
-	app.mu.Unlock()
+	app.o.Unlock()
 
 	// test timestamp marshal
 	bs1, _ := json.MarshalIndent(app.history, "", "\t")
@@ -110,6 +127,17 @@ func TestAppExecPatrolPID(t *testing.T) {
 func TestAppExecPatrolShutdown(t *testing.T) {
 	log.Println("TestAppExecPatrolShutdown")
 
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-time.After(time.Second * 45):
+			log.Fatalln("failed to complete TestAppExecPatrolShutdown")
+		case <-done:
+			return
+		}
+	}()
+
 	wd, err := os.Getwd()
 	unittest.IsNil(t, err)
 	unittest.Equals(t, wd != "", true)
@@ -133,17 +161,22 @@ func TestAppExecPatrolShutdown(t *testing.T) {
 			Stderr: os.Stderr,
 			Stdout: os.Stdout,
 		},
+		o: cas.CreateApp(false),
 	}
 
 	// this will fail if testapp is somehow running
 	// testapp has a self destruct function, it should be about 30 seconds
+	app.o.Lock()
 	unittest.NotNil(t, app.isAppRunning())
 	unittest.IsNil(t, app.startApp())
+	app.o.Unlock()
 	// we have to wait a second or two for Start() to run AND THEN have testapp write our PID to file
 	// if we do not wait testapp could run and not yet write PID
 	fmt.Println("waiting for app")
 	<-time.After(time.Second * 3)
+	app.o.Lock()
 	unittest.IsNil(t, app.isAppRunning())
+	app.o.Unlock()
 	fmt.Println("waited for app")
 
 	// mark as shutdown
@@ -153,9 +186,9 @@ func TestAppExecPatrolShutdown(t *testing.T) {
 	pid := app.GetPID()
 	fmt.Printf("signaling app PID: %d\n", pid)
 
-	app.mu.Lock()
+	app.o.Lock()
 	app.signalStop()
-	app.mu.Unlock()
+	app.o.Unlock()
 
 	// wait for our process to be killed
 	fmt.Println("waiting for app to be killed")
@@ -163,7 +196,7 @@ func TestAppExecPatrolShutdown(t *testing.T) {
 	fmt.Println("app closed")
 
 	// as soon as our app is closed we have to use a mutex since our closing function runs in a goroutine
-	app.mu.Lock()
+	app.o.Lock()
 	// check that our process is dead
 	unittest.NotNil(t, app.isAppRunning())
 	// check our history
@@ -175,10 +208,21 @@ func TestAppExecPatrolShutdown(t *testing.T) {
 	unittest.Equals(t, app.history[0].Shutdown, true)
 	// check that we were notified - SIGUSR1
 	unittest.Equals(t, app.history[0].ExitCode, 10)
-	app.mu.Unlock()
+	app.o.Unlock()
 }
 func TestAppExecPatrolDisable(t *testing.T) {
 	log.Println("TestAppExecPatrolDisable")
+
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-time.After(time.Second * 45):
+			log.Fatalln("failed to complete TestAppExecPatrolDisable")
+		case <-done:
+			return
+		}
+	}()
 
 	wd, err := os.Getwd()
 	unittest.IsNil(t, err)
@@ -203,17 +247,22 @@ func TestAppExecPatrolDisable(t *testing.T) {
 			Stderr: os.Stderr,
 			Stdout: os.Stdout,
 		},
+		o: cas.CreateApp(false),
 	}
 
 	// this will fail if testapp is somehow running
 	// testapp has a self destruct function, it should be about 30 seconds
+	app.o.Lock()
 	unittest.NotNil(t, app.isAppRunning())
 	unittest.IsNil(t, app.startApp())
+	app.o.Unlock()
 	// we have to wait a second or two for Start() to run AND THEN have testapp write our PID to file
 	// if we do not wait testapp could run and not yet write PID
 	fmt.Println("waiting for app")
 	<-time.After(time.Second * 3)
+	app.o.Lock()
 	unittest.IsNil(t, app.isAppRunning())
+	app.o.Unlock()
 	fmt.Println("waited for app")
 
 	// set disabled
@@ -222,9 +271,9 @@ func TestAppExecPatrolDisable(t *testing.T) {
 	pid := app.GetPID()
 	fmt.Printf("signaling app PID: %d\n", pid)
 
-	app.mu.Lock()
+	app.o.Lock()
 	app.signalStop()
-	app.mu.Unlock()
+	app.o.Unlock()
 
 	// wait for our process to be killed
 	fmt.Println("waiting for app to be killed")
@@ -232,7 +281,7 @@ func TestAppExecPatrolDisable(t *testing.T) {
 	fmt.Println("app closed")
 
 	// as soon as our app is closed we have to use a mutex since our closing function runs in a goroutine
-	app.mu.Lock()
+	app.o.Lock()
 	// check that our process is dead
 	unittest.NotNil(t, app.isAppRunning())
 	// check our history
@@ -244,10 +293,21 @@ func TestAppExecPatrolDisable(t *testing.T) {
 	unittest.Equals(t, app.history[0].Shutdown, false)
 	// check that we were notified - SIGUSR2
 	unittest.Equals(t, app.history[0].ExitCode, 12)
-	app.mu.Unlock()
+	app.o.Unlock()
 }
 func TestAppExecPatrolLogDirectory(t *testing.T) {
 	log.Println("TestAppExecPatrolLogDirectory")
+
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-time.After(time.Second * 45):
+			log.Fatalln("failed to complete TestAppExecPatrolLogDirectory")
+		case <-done:
+			return
+		}
+	}()
 
 	wd, err := os.Getwd()
 	unittest.IsNil(t, err)
@@ -270,19 +330,24 @@ func TestAppExecPatrolLogDirectory(t *testing.T) {
 			Binary:           "testapp",
 			// we're NOTgoing to hijack our stderr and stdout!!!!
 		},
+		o: cas.CreateApp(false),
 	}
 
 	// this will fail if testapp is somehow running
 	// testapp has a self destruct function, it should be about 30 seconds
+	app.o.Lock()
 	unittest.NotNil(t, app.isAppRunning())
-	unittest.Equals(t, app.started_log.IsZero(), true)
+	unittest.Equals(t, app.o.GetStartedLog().IsZero(), true)
 	unittest.IsNil(t, app.startApp())
-	unittest.Equals(t, app.started_log.IsZero(), false)
+	unittest.Equals(t, app.o.GetStartedLog().IsZero(), false)
+	app.o.Unlock()
 	// we have to wait a second or two for Start() to run AND THEN have testapp write our PID to file
 	// if we do not wait testapp could run and not yet write PID
 	fmt.Println("waiting for app")
 	<-time.After(time.Second * 3)
+	app.o.Lock()
 	unittest.IsNil(t, app.isAppRunning())
+	app.o.Unlock()
 	fmt.Println("waited for app")
 
 	// set disabled
@@ -291,9 +356,9 @@ func TestAppExecPatrolLogDirectory(t *testing.T) {
 	pid := app.GetPID()
 	fmt.Printf("signaling app PID: %d\n", pid)
 
-	app.mu.Lock()
+	app.o.Lock()
 	app.signalStop()
-	app.mu.Unlock()
+	app.o.Unlock()
 
 	// wait for our process to be killed
 	fmt.Println("waiting for app to be killed")
@@ -301,10 +366,10 @@ func TestAppExecPatrolLogDirectory(t *testing.T) {
 	fmt.Println("app closed")
 
 	// as soon as our app is closed we have to use a mutex since our closing function runs in a goroutine
-	app.mu.Lock()
+	app.o.Lock()
 	// check that our process is dead
 	unittest.NotNil(t, app.isAppRunning())
-	unittest.Equals(t, app.started_log.IsZero(), false)
+	unittest.Equals(t, app.o.GetStartedLog().IsZero(), false)
 	// check our history
 	unittest.Equals(t, len(app.history), 1)
 	unittest.Equals(t, app.history[0].PID, pid)
@@ -314,12 +379,15 @@ func TestAppExecPatrolLogDirectory(t *testing.T) {
 	unittest.Equals(t, app.history[0].Shutdown, false)
 	// check that we were notified - SIGUSR2
 	unittest.Equals(t, app.history[0].ExitCode, 12)
-	app.mu.Unlock()
+	app.o.Unlock()
 
 	// verify our logs exist
 
+	app.o.Lock()
+	s := fmt.Sprintf("%s/%d.stdout.log", app.logDir(), app.o.GetStartedLog().UnixNano())
+	app.o.Unlock()
 	// stdout
-	f1, err := os.Open(fmt.Sprintf("%s/%d.stdout.log", app.logDir(), app.started_log.UnixNano()))
+	f1, err := os.Open(s)
 	unittest.IsNil(t, err)
 	unittest.NotNil(t, f1)
 	// read 2 bytes
@@ -331,7 +399,10 @@ func TestAppExecPatrolLogDirectory(t *testing.T) {
 	// close
 	unittest.IsNil(t, f1.Close())
 	// stderr
-	f2, err := os.Open(fmt.Sprintf("%s/%d.stderr.log", app.logDir(), app.started_log.UnixNano()))
+	app.o.Lock()
+	s = fmt.Sprintf("%s/%d.stderr.log", app.logDir(), app.o.GetStartedLog().UnixNano())
+	app.o.Unlock()
+	f2, err := os.Open(s)
 	unittest.IsNil(t, err)
 	unittest.NotNil(t, f2)
 	// read 2 bytes
@@ -345,6 +416,17 @@ func TestAppExecPatrolLogDirectory(t *testing.T) {
 }
 func TestAppExecAppPID(t *testing.T) {
 	log.Println("TestAppExecAppPID")
+
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-time.After(time.Second * 45):
+			log.Fatalln("failed to complete TestAppExecAppPID")
+		case <-done:
+			return
+		}
+	}()
 
 	wd, err := os.Getwd()
 	unittest.IsNil(t, err)
@@ -369,20 +451,25 @@ func TestAppExecAppPID(t *testing.T) {
 			Stderr: os.Stderr,
 			Stdout: os.Stdout,
 		},
+		o: cas.CreateApp(false),
 	}
 
 	// this will fail if testapp is somehow running
 	// testapp has a self destruct function, it should be about 30 seconds
+	app.o.Lock()
 	unittest.NotNil(t, app.isAppRunning())
 	// check our history
 	unittest.Equals(t, len(app.history), 0)
 	// start app
 	unittest.IsNil(t, app.startApp())
+	app.o.Unlock()
 	// we have to wait a second or two for Start() to run AND THEN have testapp write our PID to file
 	// if we do not wait testapp could run and not yet write PID
 	fmt.Println("waiting for app")
 	<-time.After(time.Second * 3)
+	app.o.Lock()
 	unittest.IsNil(t, app.isAppRunning())
+	app.o.Unlock()
 	fmt.Println("waited for app")
 
 	// we have to signal our app to stop, just incase we were to run this unittest again
@@ -405,7 +492,7 @@ func TestAppExecAppPID(t *testing.T) {
 	fmt.Println("app closed")
 
 	// as soon as our app is closed we have to use a mutex since our closing function runs in a goroutine
-	app.mu.Lock()
+	app.o.Lock()
 	// check our history
 	unittest.Equals(t, len(app.history), 1)
 	// PID should exist, but may not, it's not supported with APP_PID
@@ -413,10 +500,10 @@ func TestAppExecAppPID(t *testing.T) {
 	unittest.Equals(t, app.history[0].Started.IsZero(), false)
 	unittest.Equals(t, app.history[0].Stopped.IsZero(), false)
 	unittest.Equals(t, app.history[0].Shutdown, false)
-	app.mu.Unlock()
+	app.o.Unlock()
 
 	// as soon as our app is closed we have to use a mutex since our closing function runs in a goroutine
-	app.mu.Lock()
+	app.o.Lock()
 	// check that our process is dead
 	unittest.NotNil(t, app.isAppRunning())
 	// check our history
@@ -426,10 +513,21 @@ func TestAppExecAppPID(t *testing.T) {
 	unittest.Equals(t, app.history[0].Started.IsZero(), false)
 	unittest.Equals(t, app.history[0].Stopped.IsZero(), false)
 	unittest.Equals(t, app.history[0].Shutdown, false)
-	app.mu.Unlock()
+	app.o.Unlock()
 }
 func TestAppExecHTTP(t *testing.T) {
 	log.Println("TestAppExecHTTP")
+
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-time.After(time.Second * 45):
+			log.Fatalln("failed to complete TestAppExecHTTP")
+		case <-done:
+			return
+		}
+	}()
 
 	wd, err := os.Getwd()
 	unittest.IsNil(t, err)
@@ -484,27 +582,29 @@ func TestAppExecHTTP(t *testing.T) {
 
 	// start testapp
 	// not running
+	patrol.apps["http"].o.Lock()
 	unittest.NotNil(t, patrol.apps["http"].isAppRunning())
 	unittest.IsNil(t, patrol.apps["http"].startApp())
+	patrol.apps["http"].o.Unlock()
 	// from here on out we have to use a mutex incase ping races
 	// app should be running now
 	// our comparator should be based off of started until we receive a ping
 	// once we receive our first ping we will compare on ping
-	patrol.apps["http"].mu.Lock()
+	patrol.apps["http"].o.Lock()
 	unittest.IsNil(t, patrol.apps["http"].isAppRunning())
-	patrol.apps["http"].mu.Unlock()
+	patrol.apps["http"].o.Unlock()
 	// we have to wait a second or two for Start() to run AND THEN have testapp write our PID to file
 	// if we do not wait testapp could run and not yet write PID
 	fmt.Println("waiting for app")
 	<-time.After(time.Second * 5)
 	fmt.Println("waited for app")
 	// verify we're receiving pings
-	patrol.apps["http"].mu.Lock()
+	patrol.apps["http"].o.Lock()
 	unittest.IsNil(t, patrol.apps["http"].isAppRunning())
+	patrol.apps["http"].o.Unlock()
 	// verify we've received a PID back
-	pid := patrol.apps["http"].pid
+	pid := patrol.apps["http"].GetPID()
 	unittest.Equals(t, pid > 0, true)
-	patrol.apps["http"].mu.Unlock()
 
 	// signal back we want pinging to stop
 	fmt.Printf("signaling app PID: %d\n", pid)
@@ -520,7 +620,7 @@ func TestAppExecHTTP(t *testing.T) {
 	fmt.Println("app timed out")
 
 	// check that our process is considered to be not running
-	patrol.apps["http"].mu.Lock()
+	patrol.apps["http"].o.Lock()
 	unittest.NotNil(t, patrol.apps["http"].isAppRunning())
 	// check our history
 	unittest.Equals(t, len(patrol.apps["http"].history), 1)
@@ -530,7 +630,7 @@ func TestAppExecHTTP(t *testing.T) {
 	unittest.Equals(t, patrol.apps["http"].history[0].Stopped.IsZero(), false)
 	unittest.Equals(t, patrol.apps["http"].history[0].Shutdown, false)
 	unittest.Equals(t, patrol.apps["http"].history[0].ExitCode, 0)
-	patrol.apps["http"].mu.Unlock()
+	patrol.apps["http"].o.Unlock()
 
 	fmt.Println("verifying app is still alive")
 	// our process SHOULD still be alive
@@ -561,6 +661,17 @@ func TestAppExecHTTP(t *testing.T) {
 }
 func TestAppExecUDP(t *testing.T) {
 	log.Println("TestAppExecUDP")
+
+	done := make(chan struct{})
+	defer close(done)
+	go func() {
+		select {
+		case <-time.After(time.Second * 45):
+			log.Fatalln("failed to complete TestAppExecUDP")
+		case <-done:
+			return
+		}
+	}()
 
 	wd, err := os.Getwd()
 	unittest.IsNil(t, err)
@@ -630,27 +741,29 @@ func TestAppExecUDP(t *testing.T) {
 
 	// start testapp
 	// not running
+	patrol.apps["udp"].o.Lock()
 	unittest.NotNil(t, patrol.apps["udp"].isAppRunning())
 	unittest.IsNil(t, patrol.apps["udp"].startApp())
+	patrol.apps["udp"].o.Unlock()
 	// from here on out we have to use a mutex incase ping races
 	// app should be running now
 	// our comparator should be based off of started until we receive a ping
 	// once we receive our first ping we will compare on ping
-	patrol.apps["udp"].mu.Lock()
+	patrol.apps["udp"].o.Lock()
 	unittest.IsNil(t, patrol.apps["udp"].isAppRunning())
-	patrol.apps["udp"].mu.Unlock()
+	patrol.apps["udp"].o.Unlock()
 	// we have to wait a second or two for Start() to run AND THEN have testapp write our PID to file
 	// if we do not wait testapp could run and not yet write PID
 	fmt.Println("waiting for app")
 	<-time.After(time.Second * 5)
 	fmt.Println("waited for app")
 	// verify we're receiving pings
-	patrol.apps["udp"].mu.Lock()
+	patrol.apps["udp"].o.Lock()
 	unittest.IsNil(t, patrol.apps["udp"].isAppRunning())
+	patrol.apps["udp"].o.Unlock()
 	// verify we've received a PID back
-	pid := patrol.apps["udp"].pid
+	pid := patrol.apps["udp"].GetPID()
 	unittest.Equals(t, pid > 0, true)
-	patrol.apps["udp"].mu.Unlock()
 
 	// signal back we want pinging to stop
 	fmt.Printf("signaling app PID: %d\n", pid)
@@ -666,7 +779,7 @@ func TestAppExecUDP(t *testing.T) {
 	fmt.Println("app timed out")
 
 	// check that our process is considered to be not running
-	patrol.apps["udp"].mu.Lock()
+	patrol.apps["udp"].o.Lock()
 	unittest.NotNil(t, patrol.apps["udp"].isAppRunning())
 	// check our history
 	unittest.Equals(t, len(patrol.apps["udp"].history), 1)
@@ -676,7 +789,7 @@ func TestAppExecUDP(t *testing.T) {
 	unittest.Equals(t, patrol.apps["udp"].history[0].Stopped.IsZero(), false)
 	unittest.Equals(t, patrol.apps["udp"].history[0].Shutdown, false)
 	unittest.Equals(t, patrol.apps["udp"].history[0].ExitCode, 0)
-	patrol.apps["udp"].mu.Unlock()
+	patrol.apps["udp"].o.Unlock()
 
 	fmt.Println("verifying app is still alive")
 	// our process SHOULD still be alive
