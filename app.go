@@ -307,7 +307,13 @@ func (self *App) startApp() error {
 	}
 	// Args
 	if len(self.config.Args) > 0 {
-		cmd.Args = self.config.Args
+		// when we build a command to execute, go will populate our args with that command
+		// if we don't append our args to our current args we won't be able to see the process that we're executing
+		// when we do `ps aux | grep -i binary` for example, 'binary' will be missing but all of the extra args will be present!
+		// another reason we don't want to override this is that our first arg will be an exact path to our App/Binary
+		// we can use this exact path to verify our PID in the future when using APP_KEEPALIVE_PID_APP
+		// however, if we were to fork I'm unsure if first arg would remain the same, we could still verify this so long as our Binary value was contained in it!
+		cmd.Args = append(cmd.Args, self.config.Args...)
 	}
 	if self.config.ExtraArgs != nil {
 		if a := self.config.ExtraArgs(self); len(a) > 0 {
