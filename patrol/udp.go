@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/sabey/patrol"
 	"log"
 	"net"
+	"sabey.co/patrol"
 )
 
 func udpListen() string {

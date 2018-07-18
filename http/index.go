@@ -2,12 +2,12 @@ package http
 
 import (
 	"fmt"
-	"github.com/sabey/patrol"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"sabey.co/patrol"
 	"time"
 )
 

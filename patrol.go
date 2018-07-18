@@ -1,7 +1,7 @@
 package patrol
 
 import (
-	"github.com/sabey/patrol/cas"
+	"sabey.co/patrol/cas"
 	"sync"
 	"time"
 )

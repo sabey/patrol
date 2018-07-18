@@ -4,7 +4,7 @@
       "keepalive": 1,
       "name": "Test App",
       "binary": "testapp",
-      "working-directory": "~/go/src/github.com/sabey/patrol/unittest/testapp/",
+      "working-directory": "~/go/src/sabey.co/patrol/unittest/testapp/",
       "log-directory": "logs",
       "pid-path": "app.pid"
     },
@@ -13,7 +13,7 @@
       "disabled": true,
       "name": "Fake App",
       "binary": "testapp",
-      "working-directory": "~/go/src/github.com/sabey/patrol/unittest/testapp/",
+      "working-directory": "~/go/src/sabey.co/patrol/unittest/testapp/",
       "log-directory": "logs",
       "pid-path": "app.pid"
     },
@@ -23,7 +23,7 @@
       "secret": "secret",
       "name": "Fake Secret App",
       "binary": "testapp",
-      "working-directory": "~/go/src/github.com/sabey/patrol/unittest/testapp/",
+      "working-directory": "~/go/src/sabey.co/patrol/unittest/testapp/",
       "log-directory": "logs",
       "pid-path": "app.pid"
     }

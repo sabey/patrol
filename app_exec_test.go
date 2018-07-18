@@ -3,11 +3,11 @@ package patrol
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sabey/patrol/cas"
 	"log"
 	"net"
 	"net/http"
 	"os"
+	"sabey.co/patrol/cas"
 	"sabey.co/unittest"
 	"sync"
 	"syscall"

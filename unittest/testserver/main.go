@@ -3,12 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/sabey/patrol"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sabey.co/patrol"
 	"syscall"
 	"time"
 )

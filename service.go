@@ -3,8 +3,8 @@ package patrol
 import (
 	"context"
 	"fmt"
-	"github.com/sabey/patrol/cas"
 	"os/exec"
+	"sabey.co/patrol/cas"
 	"syscall"
 	"time"
 )

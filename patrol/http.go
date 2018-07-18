@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/sabey/patrol"
-	patrol_http "github.com/sabey/patrol/http"
 	"log"
 	"net"
 	"net/http"
+	"sabey.co/patrol"
+	patrol_http "sabey.co/patrol/http"
 )
 
 func httpListen() string {

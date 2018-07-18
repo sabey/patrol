@@ -2,10 +2,10 @@ package main
 
 import (
 	"flag"
-	"github.com/sabey/patrol"
 	"log"
 	"os"
 	"os/signal"
+	"sabey.co/patrol"
 	"sync"
 	"syscall"
 	"time"

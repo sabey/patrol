@@ -2,8 +2,8 @@ package http
 
 import (
 	"fmt"
-	"github.com/sabey/patrol"
 	"net/http"
+	"sabey.co/patrol"
 	"strconv"
 )
 
