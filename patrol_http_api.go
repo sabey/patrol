@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 )
 
 func (self *Patrol) ServeHTTPAPI(
@@ -34,7 +35,14 @@ func (self *Patrol) ServeHTTPAPI(
 		q := r.URL.Query()
 		request.ID = q.Get("id")
 		request.Group = q.Get("group")
+		if toggle, _ := strconv.ParseUint(q.Get("toggle"), 10, 64); toggle > 0 {
+			request.Toggle = uint8(toggle)
+		}
 		request.History = len(q["history"]) > 0
+		request.Secret = q.Get("secret")
+		if cas, _ := strconv.ParseUint(q.Get("cas"), 10, 64); cas > 0 {
+			request.CAS = cas
+		}
 	} else {
 		// POST
 		// read request

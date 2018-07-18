@@ -100,7 +100,7 @@ func TestAppExecPatrolPID(t *testing.T) {
 	unittest.Equals(t, len(app.history), 1)
 	unittest.Equals(t, app.history[0].PID, pid)
 	unittest.Equals(t, app.history[0].Started.IsZero(), false)
-	unittest.IsNil(t, app.history[0].LastSeen)
+	unittest.Equals(t, app.history[0].LastSeen.IsZero(), false) // last seen must always exist if we're running
 	unittest.Equals(t, app.history[0].Stopped.IsZero(), false)
 	unittest.Equals(t, app.history[0].Shutdown, false)
 	unittest.Equals(t, app.history[0].ExitCode, 0)
@@ -112,13 +112,15 @@ func TestAppExecPatrolPID(t *testing.T) {
 	// we can't use []interface{}{map[string]struct{}{} because when we scan over our map it isn't deterministic
 	result := []interface{}{
 		struct {
-			PID     uint32 `json:"pid,omitempty"`
-			Started string `json:"started,omitempty"`
-			Stopped string `json:"stopped,omitempty"`
+			PID      uint32 `json:"pid,omitempty"`
+			Started  string `json:"started,omitempty"`
+			Lastseen string `json:"lastseen,omitempty"`
+			Stopped  string `json:"stopped,omitempty"`
 		}{
-			PID:     pid,
-			Started: app.history[0].Started.Format(app.patrol.config.Timestamp),
-			Stopped: app.history[0].Stopped.Format(app.patrol.config.Timestamp),
+			PID:      pid,
+			Started:  app.history[0].Started.Format(app.patrol.config.Timestamp),
+			Lastseen: app.history[0].LastSeen.Format(app.patrol.config.Timestamp),
+			Stopped:  app.history[0].Stopped.Format(app.patrol.config.Timestamp),
 		},
 	}
 	bs2, _ := json.MarshalIndent(result, "", "\t")

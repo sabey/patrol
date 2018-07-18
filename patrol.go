@@ -127,6 +127,7 @@ func (self *Patrol) Shutdown() {
 		go self.config.TriggerShutdown(self)
 	}
 	self.shutdown = true
+	self.stop()
 }
 func (self *Patrol) IsShutdown() bool {
 	self.mu.RLock()

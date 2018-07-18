@@ -7,7 +7,7 @@ type API_Status struct {
 	Shutdown bool                     `json:"shutdown,omitempty"`
 }
 
-func (self *Patrol) getStatus() *API_Status {
+func (self *Patrol) GetStatus() *API_Status {
 	self.mu.RLock()
 	started := self.ticker_running
 	shutdown := self.shutdown

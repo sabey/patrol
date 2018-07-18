@@ -1,0 +1,43 @@
+<table class="table-inline" width="100%">
+	{{if .Started}}
+	<tr>
+		<td width="25%" valign="top" align="left">Started:</td>
+		<td width="75%" valign="top" align="left">{{.Started}}</td>
+	</tr>
+	{{if .LastSeen}}
+	<tr>
+		<td width="25%" valign="top" align="left">Uptime:</td>
+		<td width="75%" valign="top" align="left">{{.LastSeen.Sub .Started.Time}}</td>
+	</tr>
+	{{end}}
+	{{else}}
+	{{end}}
+	{{if .Secret}}
+	<tr>
+		<td width="25%" valign="top" align="left">Secret:</td>
+		<td width="75%" valign="top" align="left"><b>true</b></td>
+	</tr>
+	{{end}}
+	{{if .Disabled}}
+	<tr>
+		<td width="25%" valign="top" align="left">Disabled:</td>
+		<td width="75%" valign="top" align="left"><b>true</b></td>
+	</tr>
+	{{end}}
+	{{if .Restart}}
+	<tr>
+		<td width="25%" valign="top" align="left">Restart:</td>
+		<td width="75%" valign="top" align="left"><b>true</b></td>
+	</tr>
+	{{end}}
+	{{if .RunOnce}}
+	<tr>
+		<td width="25%" valign="top" align="left">RunOnce:</td>
+		<td width="75%" valign="top" align="left"><b>true</b></td>
+	</tr>
+	{{end}}
+	<tr>
+		<td width="25%" valign="top" align="left">Instances:</td>
+		<td width="75%" valign="top" align="left">{{len .History}}</td>
+	</tr>
+</table>

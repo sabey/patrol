@@ -1,0 +1,11 @@
+{{if not .Disabled}}
+<button type="submit" name="disable" value="1" class="btn btn-c btn-sm smooth">Disable</button><br />
+{{else}}
+<button type="submit" name="enable" value="1" class="btn btn-a btn-sm smooth">Enable</button><br />
+{{end}}
+<button type="submit" name="restart" value="1" class="btn btn-b btn-sm smooth">Restart</button><br />
+<button type="submit" name="runonce-enable" value="1" class="btn btn-a btn-sm smooth">RunOnce Enable</button>
+<button type="submit" name="runonce-disable" value="1" class="btn btn-c btn-sm smooth">RunOnce Disable</button><br />
+{{if .Secret}}
+<span class="addon secret">Secret</span><input type="text" class="smooth secret" name="secret" />
+{{end}}

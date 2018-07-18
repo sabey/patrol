@@ -1,0 +1,27 @@
+
+
+.table-inline tbody>:nth-child(2n-1){background:#fff}
+.table-inline tbody>:nth-child(2n){background:#ddd}
+
+/* Min+ plugin*/
+message {
+	display: block;
+	padding: 2em;
+	background: #def;
+	border-left: 5px solid #44e;
+}
+
+.warning {
+	border-color: #e44;
+	background: #fdd;
+}
+
+.great {
+	border-color: #2d2;
+	background: #dfd;
+}
+
+.secret{
+	background: #fff;
+}
+

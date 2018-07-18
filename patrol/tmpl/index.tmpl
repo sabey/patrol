@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<title>Patrol</title>
+		<link href="/min.css" rel="stylesheet" type="text/css">
+		<link href="/css.css" rel="stylesheet" type="text/css">
+	</head>
+	<body>
+		<nav class="nav" tabindex="-1" onclick="this.focus()">
+			<div class="container">
+				<a class="pagename current" href="/">Patrol</a>
+				<a href="/status/">GET /status/</a>
+				<a href="/api/?group=&amp;id=">GET /api/?group=(app||service)&amp;id=app</a>
+				<a href="/api/">POST /api/</a>
+				<a href="https://github.com/sabey/patrol">Github</a>
+			</div>
+		</nav>
+		<button class="btn-close btn btn-sm">×</button>
+		<div class="container">
+{{if .Status}}
+{{if .Status.Started}}
+<h3 align="center">Uptime: {{.Now.Sub .Status.Started.Time}}</h3>
+{{else}}
+<h1 align="center">Patrol is NOT running!!!</h1>
+{{end}}
+{{if .Status.Shutdown}}
+<h1 align="center">Patrol IS Shutting Down!!!</h1>
+{{end}}
+{{if .StatusPost}}
+{{if .StatusPost.Error}}
+<message class="warning"><b>{{.StatusPost.Error}}</b></message>
+{{end}}
+{{end}}
+{{if .Status.Apps}}
+<h1>Applications</h1>
+<table class="table">
+	<thead>
+		<tr>
+			<th width="25%" valign="top" align="left">Application</th>
+			<th width="50%" valign="top" align="left">State</th>
+			<th width="25%" valign="top" align="center">Toggle</th>
+		</tr>
+	</thead>
+	{{range $id, $result := .Status.Apps}}
+		<tr>
+			<td valign="top" align="left">
+				<b><a href="/api/?group=app&amp;id={{$id}}">{{$result.Name}}</a></b><br /><br />
+				ID: {{$id}}<br />
+				PID: {{$result.PID}}<br /><br />
+				<a href="/logs/?group=app&amp;id={{$id}}">Logs</a><br />
+				{{$app := $.Patrol.GetApp $id}}
+				{{if $app.GetStdoutLog}}
+					{{if $result.Secret}}
+					stdout<br />
+					{{else}}
+					<a href="/stdout/?group=app&amp;id={{$id}}">Stdout</a> <a href="/stdout/?group=app&amp;id={{$id}}&amp;last=1000"></a><br />
+					{{end}}
+				{{end}}
+				{{if $app.GetStderrLog}}
+					{{if $result.Secret}}
+					stderr<br />
+					{{else}}
+					<a href="/stderr/?group=app&amp;id={{$id}}">Stderr</a> <a href="/stderr/?group=app&amp;id={{$id}}&amp;last=1000"></a><br />
+					{{end}}
+				{{end}}
+			</td>
+			<td valign="top" align="left">
+				{{ template "state.tmpl" $result}}
+			</td>
+				<form action="/" method="POST" enctype="application/x-www-form-urlencoded">
+			<td valign="top" align="center" style="text-align: center;">
+					<input type="hidden" name="id" value="{{$id}}" />
+					<input type="hidden" name="group" value="app" />
+					{{ template "toggle.tmpl" $result}}
+			</td>
+				</form>
+		</tr>
+	{{else}}
+		<tr>
+			<td>No Applications Found</td>
+		</tr>
+	{{end}}
+</table>
+{{else}}
+<h1>Applications NOT Found?!</h1>
+{{end}}
+{{if .Status.Services}}
+<h1>Services</h1>
+<table class="table">
+	<thead>
+		<tr>
+			<th width="25%" valign="top" align="left">Service</th>
+			<th width="50%" valign="top" align="left">State</th>
+			<th width="25%" valign="top" align="center">Toggle</th>
+		</tr>
+	</thead>
+	{{range $id, $result := .Status.Services}}
+		<tr>
+			<td valign="top" align="left">
+				<b><a href="/api/?group=service&amp;id={{$id}}">{{$result.Name}}</a></b><br /><br />
+				ID: {{$id}}<br />
+			</td>
+			<td valign="top" align="left">
+				{{ template "state.tmpl" $result}}
+			</td>
+				<form action="/" method="POST" enctype="application/x-www-form-urlencoded">
+			<td valign="top" align="center" style="text-align: center;">
+					<input type="hidden" name="id" value="{{$id}}" />
+					<input type="hidden" name="group" value="group" />
+					{{ template "toggle.tmpl" $result}}
+			</td>
+				</form>
+		</tr>
+	{{else}}
+		<tr>
+			<td>No Services Found</td>
+		</tr>
+	{{end}}
+</table>
+{{else}}
+<h1>Services NOT Found?!</h1>
+{{end}}
+{{if .Status.Started}}
+<h3 align="center">Uptime: {{.Now.Sub .Status.Started.Time}}</h3>
+{{else}}
+<h1 align="center">Patrol is NOT running!!!</h1>
+{{end}}
+{{if .Status.Shutdown}}
+<h1 align="center">Patrol IS Shutting Down!!!</h1>
+{{end}}
+{{else}}
+<h1>Status NOT found?!</h1>
+{{end}}
+		</div>
+	</body>
+</html>

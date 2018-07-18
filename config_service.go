@@ -53,7 +53,7 @@ type ConfigService struct {
 	// we're not going to throttle comparing our secret
 	// choose a secret with enough bits of uniqueness and don't make your patrol instance public
 	// if you are worried about your secret being public, use TLS and HTTP, DO NOT USE UDP!!!
-	Secret string `json:"ping-secret,omitempty"`
+	Secret string `json:"secret,omitempty"`
 	// these are NOT supported with JSON for obvious reasons
 	// these will have to be set manually!!!
 	// Triggers

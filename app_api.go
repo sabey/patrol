@@ -163,10 +163,12 @@ func (self *App) apiResponse(
 	endpoint uint8,
 ) *API_Response {
 	result := &API_Response{
+		Name:     self.config.Name,
 		PID:      self.o.GetPID(),
 		Disabled: self.o.IsDisabled(),
 		Restart:  self.o.IsRestart(),
 		RunOnce:  self.o.IsRunOnce(),
+		Secret:   self.config.Secret != "",
 		CAS:      self.o.GetCAS(),
 	}
 	if endpoint != api_endpoint_status {
@@ -194,7 +196,19 @@ func (self *App) apiResponse(
 			f:    self.patrol.config.Timestamp,
 		}
 	}
-	if !self.o.GetLastSeen().IsZero() {
+	if self.o.GetLastSeen().IsZero() {
+		if self.config.KeepAlive == APP_KEEPALIVE_PID_PATROL {
+			// if our app was running lastseen should exist
+			if !self.o.GetStarted().IsZero() {
+				// we should set lastseen to now
+				// we're responsible for this service to always be running
+				result.LastSeen = &Timestamp{
+					Time: time.Now(),
+					f:    self.patrol.config.Timestamp,
+				}
+			}
+		}
+	} else {
 		result.LastSeen = &Timestamp{
 			Time: self.o.GetLastSeen(),
 			f:    self.patrol.config.Timestamp,

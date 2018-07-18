@@ -3,7 +3,10 @@ package patrol
 import (
 	"fmt"
 	"io"
+	"log"
 	"os"
+	"os/user"
+	"strings"
 )
 
 var (
@@ -33,6 +36,9 @@ type ConfigApp struct {
 	// Working Directory is currently required to be non empty
 	// we don't want Apps executing relative to the current directory, we want them to know what their reference is
 	// IF any other path is relative and not absolute, they will be considered relative to the working directory
+	//
+	// the only time WorkingDirectory is allowed to be relative is if we're prefixed with ~/
+	// we will then replace that with our current users home directory as the prefix
 	WorkingDirectory string `json:"working-directory,omitempty"`
 	// Log Directory for stderr and stdout
 	LogDirectory string `json:"log-directory,omitempty"`
@@ -55,7 +61,7 @@ type ConfigApp struct {
 	// we're not going to throttle comparing our secret
 	// choose a secret with enough bits of uniqueness and don't make your patrol instance public
 	// if you are worried about your secret being public, use TLS and HTTP, DO NOT USE UDP!!!
-	Secret string `json:"ping-secret,omitempty"`
+	Secret string `json:"secret,omitempty"`
 	////////////
 	// os.Cmd //
 	////////////
@@ -209,6 +215,24 @@ func (self *ConfigApp) Clone() *ConfigApp {
 	}
 	for _, e := range self.Env {
 		o.Env = append(o.Env, e)
+	}
+	// fix WorkingDirectory
+	if strings.HasPrefix(o.WorkingDirectory, "~/") {
+		// remove ~/
+		// prefix with Home Directory
+		// if we can't get a homedir we're not going to modify our working directory
+		// if we fail to fix this path we will get an error saying the working directory is relative
+		u, err := user.Current()
+		if err != nil {
+			log.Printf("./patrol.ConfigApp.Clone(): failed to get user.Current(): \"%s\"\n", err)
+		} else {
+			// we need homedir to be non empty before we trim
+			// we don't want to make our relative path absolute if it is empty
+			if u.HomeDir != "" {
+				// just trim ~
+				o.WorkingDirectory = fmt.Sprintf("%s%s", u.HomeDir, o.WorkingDirectory[1:])
+			}
+		}
 	}
 	return o
 }

@@ -76,9 +76,11 @@ func (self *Service) apiResponse(
 	endpoint uint8,
 ) *API_Response {
 	result := &API_Response{
+		Name:     self.config.Name,
 		Disabled: self.o.IsDisabled(),
 		Restart:  self.o.IsRestart(),
 		RunOnce:  self.o.IsRunOnce(),
+		Secret:   self.config.Secret != "",
 		CAS:      self.o.GetCAS(),
 	}
 	if endpoint != api_endpoint_status {

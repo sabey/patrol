@@ -54,6 +54,7 @@ we'll have to ignore `history, keyvalue, and errors`, if they're needed the JSON
 type API_Response struct {
 	ID       string                 `json:"id,omitempty"`
 	Group    string                 `json:"group,omitempty"`
+	Name     string                 `json:"name,omitempty"`
 	PID      uint32                 `json:"pid,omitempty"`
 	Started  *Timestamp             `json:"started,omitempty"`
 	LastSeen *Timestamp             `json:"lastseen,omitempty"`
@@ -63,6 +64,7 @@ type API_Response struct {
 	Shutdown bool                   `json:"shutdown,omitempty"`
 	History  []*History             `json:"history,omitempty"`
 	KeyValue map[string]interface{} `json:"keyvalue,omitempty"`
+	Secret   bool                   `json:"secret,omitempty"`
 	Errors   []string               `json:"errors,omitempty"`
 	// like all of our other values, CAS is a snapshot of our PREVIOUS state
 	// we are NEVER going to return our current CAS after modifying our current state or values

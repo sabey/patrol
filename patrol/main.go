@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -13,6 +14,22 @@ import (
 var (
 	config_path = flag.String("config", "config.json", "path to patrol config file")
 )
+var (
+	p           *patrol.Patrol
+	shutdown_c  = make(chan struct{})
+	shutdown_is bool
+	shutdown_mu sync.Mutex
+)
+
+func shutdown() {
+	shutdown_mu.Lock()
+	defer shutdown_mu.Unlock()
+	if shutdown_is {
+		return
+	}
+	shutdown_is = true
+	close(shutdown_c)
+}
 
 func main() {
 	start := time.Now()
@@ -25,7 +42,34 @@ func main() {
 		os.Exit(254)
 		return
 	}
-	p, err := patrol.CreatePatrol(config)
+	// fix listeners
+	// http
+	if config.HTTP == nil {
+		config.HTTP = &patrol.ConfigHTTP{
+			Listen: httpListen(),
+		}
+	}
+	if config.HTTP.Listen == "" {
+		config.HTTP.Listen = httpListen()
+	}
+	if len(config.ListenHTTP) == 0 {
+		config.ListenHTTP = []string{config.HTTP.Listen}
+	}
+	// udp
+	if config.UDP == nil {
+		config.UDP = &patrol.ConfigUDP{
+			Listen: udpListen(),
+		}
+	}
+	if config.UDP.Listen == "" {
+		config.UDP.Listen = udpListen()
+	}
+	if len(config.ListenUDP) == 0 {
+		config.ListenUDP = []string{config.UDP.Listen}
+	}
+	// modify timestamp
+	config.Timestamp = time.RFC1123Z
+	p, err = patrol.CreatePatrol(config)
 	if err != nil {
 		log.Printf("./patrol/patrol.main(): failed to Create Patrol: %s\n", err)
 		os.Exit(255)
@@ -34,6 +78,8 @@ func main() {
 	// start patrol
 	log.Println("./patrol/patrol.main(): Starting Patrol")
 	p.Start()
+	go HTTP()
+	go UDP()
 	// create an unbuffered channel to listen for signals
 	signals := make(chan os.Signal)
 	// send signal notifications to our variable `signals`
@@ -68,59 +114,66 @@ func main() {
 			58) SIGRTMAX-6	59) SIGRTMAX-5	60) SIGRTMAX-4	61) SIGRTMAX-3	62) SIGRTMAX-2
 			63) SIGRTMAX-1	64) SIGRTMAX
 		*/
-		sig := <-signals
-		// handle signal
-		// currently ALL of our options will result in a shutdown!!!
-		// on shutdown we will notify our children of shutdown
-		switch sig {
-		case syscall.SIGHUP:
-			// Hangup / ssh broken pipe
-			log.Println("./patrol/patrol.main(): SIGHUP")
+		// handle signals and shutdown
+		select {
+		case <-shutdown_c:
+			log.Println("./unittest/testserver.main(): listener shutdown!")
 			done = true
 			break
-		case syscall.SIGINT:
-			// terminate process
-			// ctrl+c
-			log.Println("./patrol/patrol.main(): SIGINT")
-			done = true
-			break
-		case syscall.SIGQUIT:
-			// ctrl+4 or ctrl+|
-			log.Println("./patrol/patrol.main(): SIGQUIT")
-			done = true
-			break
-		case syscall.SIGKILL:
-			// kill -9
-			// shutdown NOW
-			log.Fatalf("./patrol/patrol.main(): SIGKILL")
-			done = true
-			break
-		case syscall.SIGTERM:
-			// killall service
-			// gracefully shutdown NOW
-			log.Println("./patrol/patrol.main(): SIGTERM")
-			done = true
-			break
-		case syscall.SIGTSTP:
-			// this will cause the program to go to the background if in a cli
-			// ctrl+z
-			done = true
-			break
-		case syscall.SIGUSR1:
-			// unreserved signal - handle however we want
-		case syscall.SIGUSR2:
-			// unreserved signal - handle however we want
-		default:
-			// unknown
-			// do nothing
-			log.Printf("./patrol/patrol.main(): Unknown Signal Ignored: \"%v\"\n", sig)
+		case sig := <-signals:
+			switch sig {
+			case syscall.SIGHUP:
+				// Hangup / ssh broken pipe
+				log.Println("./patrol/patrol.main(): SIGHUP")
+				done = true
+				break
+			case syscall.SIGINT:
+				// terminate process
+				// ctrl+c
+				log.Println("./patrol/patrol.main(): SIGINT")
+				done = true
+				break
+			case syscall.SIGQUIT:
+				// ctrl+4 or ctrl+|
+				log.Println("./patrol/patrol.main(): SIGQUIT")
+				done = true
+				break
+			case syscall.SIGKILL:
+				// kill -9
+				// shutdown NOW
+				log.Println("./patrol/patrol.main(): SIGKILL")
+				done = true
+				break
+			case syscall.SIGTERM:
+				// killall service
+				// gracefully shutdown NOW
+				log.Println("./patrol/patrol.main(): SIGTERM")
+				done = true
+				break
+			case syscall.SIGTSTP:
+				// this will cause the program to go to the background if in a cli
+				// ctrl+z
+				log.Println("./patrol/patrol.main(): SIGTSTP")
+				done = true
+				break
+			case syscall.SIGUSR1:
+				// unreserved signal - handle however we want
+				log.Println("./patrol/patrol.main(): SIGUSR1 - Ignored")
+			case syscall.SIGUSR2:
+				// unreserved signal - handle however we want
+				log.Println("./patrol/patrol.main(): SIGUSR2 - Ignored")
+			default:
+				// unknown
+				// do nothing
+				log.Printf("./patrol/patrol.main(): Unknown Signal Ignored: \"%v\"\n", sig)
+			}
 		}
 		if done {
 			break
 		}
 	}
 	log.Println("./patrol/patrol.main(): Stopping Patrol")
-	p.Stop()
+	p.Shutdown()
 	// wait for patrol to stop
 	log.Println("./patrol/patrol.main(): Waiting for Patrol to stop!")
 	for {

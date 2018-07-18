@@ -1,11 +1,29 @@
 {
   "apps": {
-    "http": {
+    "testapp": {
       "keepalive": 1,
-      "binary": "http",
-      "name": "web server",
-      "working-directory": "/home/patrol/http",
-      "app-path": "httpd",
+      "name": "Test App",
+      "binary": "testapp",
+      "working-directory": "~/go/src/github.com/sabey/patrol/unittest/testapp/",
+      "log-directory": "logs",
+      "pid-path": "app.pid"
+    },
+    "fake": {
+      "keepalive": 3,
+      "disabled": true,
+      "name": "Fake App",
+      "binary": "testapp",
+      "working-directory": "~/go/src/github.com/sabey/patrol/unittest/testapp/",
+      "log-directory": "logs",
+      "pid-path": "app.pid"
+    },
+    "fake-secret": {
+      "keepalive": 4,
+      "disabled": true,
+      "secret": "secret",
+      "name": "Fake Secret App",
+      "binary": "testapp",
+      "working-directory": "~/go/src/github.com/sabey/patrol/unittest/testapp/",
       "log-directory": "logs",
       "pid-path": "app.pid"
     }
@@ -13,11 +31,24 @@
   "services": {
     "ssh": {
       "management": 1,
+      "name": "SSH",
       "service": "ssh",
-      "name": "ssh",
       "ignore-exit-codes": [
         127
       ]
+    },
+    "fake": {
+      "management": 1,
+      "disabled": true,
+      "name": "Fake Service",
+      "service": "fake"
+    },
+    "fake-secret": {
+      "management": 1,
+      "disabled": true,
+      "secret": "secret",
+      "name": "Fake Secret Service",
+      "service": "fake-secret"
     }
   }
 }

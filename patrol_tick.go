@@ -30,6 +30,9 @@ func (self *Patrol) Start() error {
 func (self *Patrol) Stop() error {
 	self.mu.Lock()
 	defer self.mu.Unlock()
+	return self.stop()
+}
+func (self *Patrol) stop() error {
 	if self.ticker_running.IsZero() {
 		// ticker not running
 		return ERR_PATROL_NOTRUNNING

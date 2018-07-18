@@ -118,6 +118,13 @@ func (self *App) GetStartedLog() time.Time {
 func (self *App) GetLastSeen() time.Time {
 	self.o.RLock()
 	defer self.o.RUnlock()
+	if self.config.KeepAlive == APP_KEEPALIVE_PID_PATROL {
+		// if our app is running lastseen should exist
+		if !self.o.GetStarted().IsZero() {
+			// we're running
+			return time.Now()
+		}
+	}
 	return self.o.GetLastSeen()
 }
 func (self *App) IsDisabled() bool {
@@ -206,6 +213,7 @@ func (self *App) getHistory() []*History {
 }
 func (self *App) close() {
 	if !self.o.GetStarted().IsZero() {
+		now := time.Now()
 		// save history
 		self.o.Increment() // we have to increment for modifying History
 		if len(self.history) >= self.patrol.config.History {
@@ -217,7 +225,7 @@ func (self *App) close() {
 			// pid is garaunteed to always exist for APP_KEEPALIVE_PID_PATROL
 			PID: self.o.GetPID(),
 			Stopped: &Timestamp{
-				Time: time.Now(),
+				Time: now,
 				f:    self.patrol.config.Timestamp,
 			},
 			Disabled: self.o.IsDisabled(),
@@ -235,7 +243,19 @@ func (self *App) close() {
 				f:    self.patrol.config.Timestamp,
 			}
 		}
-		if !self.o.GetLastSeen().IsZero() {
+		if self.o.GetLastSeen().IsZero() {
+			if self.config.KeepAlive == APP_KEEPALIVE_PID_PATROL {
+				// if our app was running lastseen should exist
+				if !self.o.GetStarted().IsZero() {
+					// we should set lastseen to now
+					// we're responsible for this service to always be running
+					h.LastSeen = &Timestamp{
+						Time: now,
+						f:    self.patrol.config.Timestamp,
+					}
+				}
+			}
+		} else {
 			h.LastSeen = &Timestamp{
 				Time: self.o.GetLastSeen(),
 				f:    self.patrol.config.Timestamp,
