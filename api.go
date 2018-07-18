@@ -76,9 +76,10 @@ type API_Response struct {
 	// we're never in a scenario where we take a snapshot, update, and get our CAS WITHOUT UNLOCKING!!!
 	// if we want to make a clean CAS, we should do a REQUEST without modifying anything(no ping), then do a secondary request without incrementing CAS!
 	CAS uint64 `json:"cas,omitempty"`
-	// cas-valid is the only exception to data that references our previous snapshot
+	// cas-invalid is the only exception to data that references our previous snapshot
 	// we need to know if our CAS was successful or not!
-	CASValid bool `json:"cas-valid,omitempty"`
+	// I prefer to have this as invalid not valid as most requests without a CAS will be valid!
+	CASInvalid bool `json:"cas-invalid,omitempty"`
 }
 
 func (self *API_Response) IsValid() bool {

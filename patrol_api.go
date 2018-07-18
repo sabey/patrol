@@ -113,7 +113,7 @@ func (self *Patrol) api(
 		// we're interested in returning our previous state, since we know what our new state will be
 		response := a.apiResponse(endpoint)
 		// handle request
-		response.CASValid = a.apiRequest(request)
+		response.CASInvalid = !a.apiRequest(request)
 		a.o.Unlock()
 		return response
 	} else if request.Group == "service" ||
@@ -141,7 +141,7 @@ func (self *Patrol) api(
 		// we're interested in returning our previous state, since we know what our new state will be
 		response := s.apiResponse(endpoint)
 		// handle request
-		response.CASValid = s.apiRequest(request)
+		response.CASInvalid = !s.apiRequest(request)
 		s.o.Unlock()
 		return response
 	}
