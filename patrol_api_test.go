@@ -668,14 +668,21 @@ func TestAPI(t *testing.T) {
 
 	// secret test
 	// app
+
+	// empty secret
+	// this is a GET not a modification
+	cas := patrol.apps["http"].GetCAS()
 	patrol.apps["http"].config.Secret = "abc"
 	request = &API_Request{
 		ID:    "http",
 		Group: "app",
 	}
 	result = patrol.API(request)
-	unittest.Equals(t, len(result.Errors), 1)
-	unittest.Equals(t, result.Errors[0], "Secret Invalid")
+	unittest.Equals(t, len(result.Errors), 0)
+	unittest.Equals(t, result.CASInvalid, true)
+	unittest.Equals(t, result.CAS, cas)
+
+	// invalid secret
 	request = &API_Request{
 		ID:     "http",
 		Group:  "app",
@@ -684,6 +691,9 @@ func TestAPI(t *testing.T) {
 	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 1)
 	unittest.Equals(t, result.Errors[0], "Secret Invalid")
+	unittest.Equals(t, result.CAS, 0)
+
+	// valid secret
 	request = &API_Request{
 		ID:     "http",
 		Group:  "app",
@@ -691,16 +701,49 @@ func TestAPI(t *testing.T) {
 	}
 	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 0)
+	unittest.Equals(t, result.CAS, cas)
+
+	// valid secret - keyvalue
+	request = &API_Request{
+		ID:     "http",
+		Group:  "app",
+		Secret: "abc",
+		KeyValue: map[string]interface{}{
+			"a": "b",
+		},
+	}
+	result = patrol.API(request)
+	unittest.Equals(t, len(result.Errors), 0)
+	unittest.Equals(t, result.CAS, cas)
+	unittest.Equals(t, len(result.KeyValue), 0)
+
+	// valid secret
+	request = &API_Request{
+		ID:     "http",
+		Group:  "app",
+		Secret: "abc",
+	}
+	result = patrol.API(request)
+	unittest.Equals(t, len(result.Errors), 0)
+	unittest.Equals(t, result.CAS, cas+1)
+	unittest.Equals(t, len(result.KeyValue), 1)
 
 	// service
+
+	// empty secret
+	// this is a GET not a modification
 	patrol.services["ssh"].config.Secret = "abc"
+	cas = patrol.services["ssh"].GetCAS()
 	request = &API_Request{
 		ID:    "ssh",
 		Group: "service",
 	}
 	result = patrol.API(request)
-	unittest.Equals(t, len(result.Errors), 1)
-	unittest.Equals(t, result.Errors[0], "Secret Invalid")
+	unittest.Equals(t, len(result.Errors), 0)
+	unittest.Equals(t, result.CASInvalid, true)
+	unittest.Equals(t, result.CAS, cas)
+
+	// invalid secret
 	request = &API_Request{
 		ID:     "ssh",
 		Group:  "service",
@@ -709,6 +752,9 @@ func TestAPI(t *testing.T) {
 	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 1)
 	unittest.Equals(t, result.Errors[0], "Secret Invalid")
+	unittest.Equals(t, result.CAS, 0)
+
+	// valid secret
 	request = &API_Request{
 		ID:     "ssh",
 		Group:  "service",
@@ -716,4 +762,31 @@ func TestAPI(t *testing.T) {
 	}
 	result = patrol.API(request)
 	unittest.Equals(t, len(result.Errors), 0)
+	unittest.Equals(t, result.CAS, cas)
+
+	// valid secret - keyvalue
+	request = &API_Request{
+		ID:     "ssh",
+		Group:  "service",
+		Secret: "abc",
+		KeyValue: map[string]interface{}{
+			"a": "b",
+		},
+	}
+	result = patrol.API(request)
+	unittest.Equals(t, len(result.Errors), 0)
+	unittest.Equals(t, result.CAS, cas)
+	unittest.Equals(t, len(result.KeyValue), 0)
+
+	// valid secret
+	request = &API_Request{
+		ID:     "ssh",
+		Group:  "service",
+		Secret: "abc",
+	}
+	result = patrol.API(request)
+	unittest.Equals(t, len(result.Errors), 0)
+	unittest.Equals(t, result.CAS, cas+1)
+	unittest.Equals(t, len(result.KeyValue), 1)
+
 }

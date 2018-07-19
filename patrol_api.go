@@ -54,6 +54,17 @@ func (self *Patrol) api(
 				},
 			}
 		}
+		// empty secret?
+		if a.config.Secret != "" && request.Secret == "" {
+			// regular request
+			a.o.Lock()
+			// NO MODIFICATIONS!!!
+			// we're going to set CAS invalid just incase our request contained modification data
+			response := a.apiResponse(endpoint)
+			a.o.Unlock()
+			response.CASInvalid = true
+			return response
+		}
 		// validate secret
 		if a.config.Secret != "" &&
 			a.config.Secret != request.Secret {
@@ -126,6 +137,17 @@ func (self *Patrol) api(
 					"Unknown Service",
 				},
 			}
+		}
+		// empty secret?
+		if s.config.Secret != "" && request.Secret == "" {
+			// regular request
+			s.o.Lock()
+			// NO MODIFICATIONS!!!
+			// we're going to set CAS invalid just incase our request contained modification data
+			response := s.apiResponse(endpoint)
+			s.o.Unlock()
+			response.CASInvalid = true
+			return response
 		}
 		// validate secret
 		if s.config.Secret != "" &&
