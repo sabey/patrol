@@ -338,16 +338,17 @@ func (self *App) startApp() error {
 	// patrol environment variables
 	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", APP_ENV_APP_ID, self.id))
 	cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%d", APP_ENV_KEEPALIVE, self.config.KeepAlive))
-	if self.config.KeepAlive == APP_KEEPALIVE_PID_PATROL ||
-		self.config.KeepAlive == APP_KEEPALIVE_PID_APP {
+	if self.config.PIDPath != "" {
 		// pid path
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", APP_ENV_PID, filepath.Clean(self.config.WorkingDirectory+"/"+self.config.PIDPath)))
-	} else if self.config.KeepAlive == APP_KEEPALIVE_HTTP {
-		// http address - add listeners
+	}
+	if len(self.patrol.config.ListenHTTP) > 0 {
+		// http listeners
 		bs, _ := json.Marshal(self.patrol.config.ListenHTTP)
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", APP_ENV_LISTEN_HTTP, bs))
-	} else if self.config.KeepAlive == APP_KEEPALIVE_UDP {
-		// udp address - add listeners
+	}
+	if len(self.patrol.config.ListenUDP) > 0 {
+		// udp listeners
 		bs, _ := json.Marshal(self.patrol.config.ListenUDP)
 		cmd.Env = append(cmd.Env, fmt.Sprintf("%s=%s", APP_ENV_LISTEN_UDP, bs))
 	}

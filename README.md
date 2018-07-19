@@ -62,7 +62,7 @@ go build -a -v
 ```bash
 PATROL_ID=testapp
 PATROL_KEEPALIVE=1
-PATROL_PID=12345
+PATROL_PID=/path/to/app.pid
 PATROL_HTTP=["127.0.0.1:8421"]
 PATROL_UDP=["127.0.0.1:1248"]
 ```
