@@ -3,8 +3,10 @@ package patrol
 type API_Status struct {
 	Apps     map[string]*API_Response `json:"apps,omitempty"`
 	Services map[string]*API_Response `json:"service,omitempty"`
-	Started  *Timestamp               `json:"started,omitempty"`
-	Shutdown bool                     `json:"shutdown,omitempty"`
+	// Timestamp Patrol started at
+	Started *Timestamp `json:"started,omitempty"`
+	// Is Patrol in a Shutdown state?
+	Shutdown bool `json:"shutdown,omitempty"`
 }
 
 func (self *Patrol) GetStatus() *API_Status {

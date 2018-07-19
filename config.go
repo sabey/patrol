@@ -59,61 +59,73 @@ func LoadConfig(
 }
 
 type Config struct {
-	// Apps must contain a unique non empty key: ( 0-9 A-Z a-z - )
-	// APP ID MUST be usable as a valid hostname label, ie: len <= 63 AND no starting/ending -
-	// Keys are NOT our binary name, Keys are only used as unique identifiers
-	// when sending keep alive, this unique identifier WILL be used!
-	Apps map[string]*ConfigApp `json:"apps,omitempty"`
-	// Services must contain a unique non empty key: ( 0-9 A-Z a-z - )
-	// SERVICE ID MUST be usable as a valid hostname label, ie: len <= 63 AND no starting/ending -
-	// Keys are NOT our binary name, Keys are only used as unique identifiers
-	// when sending keep alive, this unique identifier WILL be used!
+	// Apps/Services must contain a unique non empty key: ( 0-9 A-Z a-z - )
+	// ID MUST be usable as a valid hostname label, ie: len <= 63 AND no starting/ending -
+	// Keys are NOT our binary name
+	// Keys are only used as unique identifiers for our API and Keep Alive
+	Apps     map[string]*ConfigApp     `json:"apps,omitempty"`
 	Services map[string]*ConfigService `json:"services,omitempty"`
-	// this is an integer value for seconds
-	// we will multiply this by time.Second on use
+	// TickEvery is an integer value in seconds of how often we will check the state of our Apps and Services
+	// Value of 0 Defaults to 15 seconds
 	TickEvery int `json:"tick-every,omitempty"`
-	// how many records of history should we store?
+	// History is the maximum amount of instance history we should hold
+	// Value of 0 Defaults to 100
 	History int `json:"history,omitempty"`
-	// used for time.Format()
-	// empty defaults to time.String()
+	// Timestamp Layout is used by the JSON API and HTTP GUI templates
+	//
+	// Timestamp Layout can be found here:
+	// https://golang.org/pkg/time/#pkg-constants
+	// https://golang.org/pkg/time/#example_Time_Format
+	//
+	// The recommended value is RFC1123Z: "Mon, 02 Jan 2006 15:04:05 -0700"
+	//
+	// An empty value will default to time.String()
+	// https://golang.org/pkg/time/#Time.String
+	// This default is: "2006-01-02 15:04:05.999999999 -0700 MST"
+	// This default will also include our monotonic clock as a suffix: "m=±<value>"
 	Timestamp string `json:"json-timestamp,omitempty"`
-	// we're going to allow our ping timeout to be overwritten
-	// we'll multiply this by time.Second
+	// PingTimeout is an integer value in seconds of how often we require a Ping to be sent
+	// This only applies to App KeepAlives: APP_KEEPALIVE_HTTP and APP_KEEPALIVE_UDP
 	PingTimeout int `json:"ping-timeout,omitempty"`
-	// we have to have extra configs for our list of listeners - we'll allow multiple ones to exist
-	// we won't create any listeners of our own in THIS package!
-	// if a HTTP or UDP listener is required, the only time one would be created is in our subpackage `patrol`
-	// we would only create one if no other listener was listed
-	// once created they will be appended to our listen list
-	// https://en.wikipedia.org/wiki/List_of_TCP_and_UDP_port_numbers
-	// by default we will listen on :8421 for HTTP and :1248 for UDP
-	// neither seem to be used anywhere, good enough for us an easy to remember
+	// ListenHTTP/ListenUDP is our list of listeners
+	// These values are passed as Environment Variables to our executed Apps as JSON Arrays
+	//
+	// Example Environment Variables:
+	// PATROL_HTTP=["127.0.0.1:8421"]
+	// PATROL_UDP=["127.0.0.1:1248"]
+	//
+	// When using APP_KEEPALIVE_HTTP and APP_KEEPALIVE_UDP, these are the addresses we MUST ping
 	ListenHTTP []string `json:"listen-http,omitempty"`
 	ListenUDP  []string `json:"listen-udp,omitempty"`
-	// we're going to add options for a default listener here
-	// these values won't be used in this package internally
-	// IF these values are NIL and we need them, we will listen on LOOPBACK interfaces!!!
+	// HTTP/UDP currently only support the attribute `listen`
+	// This will allow us to overwrite our default listeners for HTTP and UDP
+	// In the future this will include additional options.
 	HTTP *ConfigHTTP `json:"http,omitempty"`
 	UDP  *ConfigUDP  `json:"udp,omitempty"`
-	// Triggers
-	// start is run as soon as patrol is created
-	// this is the only trigger that will ever return an error
+	// Triggers are only available when you extend Patrol as a library
+	// These values will NOT be able to be set from `config.json` - They must be set manually
+	//
+	// TriggerStart is called on CreatePatrol
+	// This will only be called ONCE
+	// If an error is returned a Patrol object will NOT be returned!
 	TriggerStart func(
 		patrol *Patrol,
 	) error `json:"-"`
-	// shutdown is run as soon as shutdown is called
+	// TriggerShutdown is called when we call Patrol.Shutdown()
+	// This will only be called ONCE
+	// Once Patrol.Shutdown() is called our Patrol object will no longer be usable
 	TriggerShutdown func(
 		patrol *Patrol,
 	) `json:"-"`
-	// started runs everytime tick is started
+	// TriggerStarted is called every time we call Patrol.Start()
 	TriggerStarted func(
 		patrol *Patrol,
 	) `json:"-"`
-	// tick is called on every tick() before apps/services is called
+	// TriggerTick is called every time we Patrol.tick() and BEFORE we check our App and Service States
 	TriggerTick func(
 		patrol *Patrol,
 	) `json:"-"`
-	// stopped runs everytime tick is stopped
+	// TriggerStopped is called every time we call Patrol.Stop()
 	TriggerStopped func(
 		patrol *Patrol,
 	) `json:"-"`

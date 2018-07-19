@@ -19,62 +19,75 @@ var (
 )
 
 type ConfigService struct {
-	// management method
-	// this is required! you must choose, it can not default to 0, we can't make assumptions on how your service may function
-	// we're not going to have a single management method, we're going to use different ones for start/status/stop
-	// IF management is set, it will take priority over the other methods
+	// Management Method
+	//
+	// SERVICE_MANAGEMENT_SERVICE = 1
+	// SERVICE_MANAGEMENT_INITD = 2
+	//
+	// SERVICE_MANAGEMENT_SERVICE: Patrol will use the command `service *`
+	// SERVICE_MANAGEMENT_INITD: Patrol will use the command `/etc/init.d/*`
+	//
+	// If Management is set it will ignore all of the Management Start/Status/Stop/Restart values
+	// If Management is 0, Start/Status/Stop/Restart must each be individually set!
+	// If for whatever reason is necessary, we could choose to user `service` for `status` and `/etc/init.d/` for start or stop!
 	Management        int `json:"management,omitempty"`
 	ManagementStart   int `json:"management-start,omitempty"`
 	ManagementStatus  int `json:"management-status,omitempty"`
 	ManagementStop    int `json:"management-stop,omitempty"`
 	ManagementRestart int `json:"management-restart,omitempty"`
-	// we're going to allow different start/status/stop parameters to be overwritten, if they are empty they will use the default value
+	// Optionally we may override our service parameters.
+	// For example, instead of `restart` we may choose to use `force-reload`
 	ManagementStartParameter   string `json:"management-start-parameter,omitempty"`
 	ManagementStatusParameter  string `json:"management-status-parameter,omitempty"`
 	ManagementStopParameter    string `json:"management-stop-parameter,omitempty"`
 	ManagementRestartParameter string `json:"management-restart-parameter,omitempty"`
-	// name is only used for the HTTP admin gui, it can contain anything but must be less than 255 bytes in length
+	// Name is used as our Display Name in our HTTP GUI.
+	// Name can contain any characters but must be less than 255 bytes in length.
 	Name string `json:"name,omitempty"`
-	// Service is the name of the executable and/or parameter
+	// Service is the parameter of our service.
+	// This is the equivalent of Binary
 	Service string `json:"service,omitempty"`
-	// these are a list of valid exit codes to ignore when returned from "service * start/status/stop/restart"
-	// by default 0 is always ignored, it is assumed to mean that the service is running
+	// These are a list of valid exit codes to ignore when returned from Start/Status/Stop/Restart
+	// By Default 0 is always ignored, it is assumed to mean that the command was successful!
 	IgnoreExitCodesStart   []uint8 `json:"ignore-exit-codes-start,omitempty"`
 	IgnoreExitCodesStatus  []uint8 `json:"ignore-exit-codes-status,omitempty"`
 	IgnoreExitCodesStop    []uint8 `json:"ignore-exit-codes-stop,omitempty"`
 	IgnoreExitCodesRestart []uint8 `json:"ignore-exit-codes-restart,omitempty"`
-	// if Disabled is true the Service won't be executed until enabled
-	// the only way to enable this once loaded is to use an API or restart Patrol
-	// if Disabled is true the Service MAY be running, we will just avoid watching it!
+	// If Disabled is true our Service won't be executed until enabled.
+	// The only way to enable an Service once Patrol is started is to use the API or restart Patrol
+	// If we are Disabled and we discover an Service that is running, we will signal it to stop.
 	Disabled bool `json:"disabled,omitempty"`
-	// clear keyvalue on new instance?
+	// KeyValueClear if true will cause our Service KeyValue to be cleared once a new instance of our Service is started.
 	KeyValueClear bool `json:"keyvalue-clear,omitempty"`
-	// optionally, we can require a secret for ping and modification to succeed
-	// we're not going to throttle comparing our secret
-	// choose a secret with enough bits of uniqueness and don't make your patrol instance public
-	// if you are worried about your secret being public, use TLS and HTTP, DO NOT USE UDP!!!
+	// If Secret is set, we will require a secret to be passed when pinging and modifying the state of our Service from our HTTP and UDP API.
+	// We are not going to throttle comparing our secret. Choose a secret with enough bits of uniqueness and don't make your Patrol instance public!
+	// If you are worried about your secret being public, use TLS and HTTP, DO NOT USE UDP!!!
 	Secret string `json:"secret,omitempty"`
-	// these are NOT supported with JSON for obvious reasons
-	// these will have to be set manually!!!
-	// Triggers
-	// we're going to allow our Start function to overwrite if our Service is Disabled
-	// this will be just incase we want to hold a disabled state outside of this service, such as in a database, just incase we crash
-	// we'll check the value of Service.disabled on return
+	// Triggers are only available when you extend Patrol as a library
+	// These values will NOT be able to be set from `config.json` - They must be set manually
+	//
+	// TriggerStart is called from tick in runServices() before we attempt to execute an Service.
 	TriggerStart func(
 		service *Service,
 	) `json:"-"`
+	// TriggerStarted is called from tick in runServices() and isServiceRunning()
+	// This is called after we either execute a new Service or we discover a newly running Service.
 	TriggerStarted func(
 		service *Service,
 	) `json:"-"`
+	// TriggerStartFailed is called from tick in runServices() when we fail to execute a new Service.
 	TriggerStartFailed func(
 		service *Service,
 	) `json:"-"`
+	// TriggerRunning is called from tick() when we discover an Service is running.
 	TriggerRunning func(
 		service *Service,
 	) `json:"-"`
+	// TriggerDisabled is called from tick() when we discover an Service that is disabled.
 	TriggerDisabled func(
 		service *Service,
 	) `json:"-"`
+	// TriggerPinged is from Service.apiRequest() when we discover an Service is running from a Ping request.
 	TriggerClosed func(
 		service *Service,
 		history *History,

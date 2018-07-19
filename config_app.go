@@ -26,51 +26,57 @@ var (
 )
 
 type ConfigApp struct {
-	// keep alive method
-	// this is required! you must choose, it can not default to 0, we can't make assumptions on how your app may function
-	KeepAlive int `json:"keepalive,omitempty"`
-	// name is only used for the HTTP admin gui, it can contain anything but must be less than 255 bytes in length
-	Name string `json:"name,omitempty"`
-	// Binary is the path to the executable
-	Binary string `json:"binary,omitempty"`
-	// Working Directory is currently required to be non empty
-	// we don't want Apps executing relative to the current directory, we want them to know what their reference is
-	// IF any other path is relative and not absolute, they will be considered relative to the working directory
+	// KeepAlive Method
 	//
-	// the only time WorkingDirectory is allowed to be relative is if we're prefixed with ~/
-	// we will then replace that with our current users home directory as the prefix
+	// APP_KEEPALIVE_PID_PATROL = 1
+	// APP_KEEPALIVE_PID_APP = 2
+	// APP_KEEPALIVE_HTTP = 3
+	// APP_KEEPALIVE_UDP = 4
+	//
+	// PID_PATROL: Patrol will watch the execution of the Application. Apps will not be able to fork.
+	// PID_APP: The Application is required to write its CURRENT PID to our `pid-path`. Patrol will `kill -0 PID` to verify that the App is running. This option should be used for forking processes.
+	// HTTP: The Application must send a Ping request to our HTTP API.
+	// UDP: The Application must send a Ping request to our UDP API.
+	KeepAlive int `json:"keepalive,omitempty"`
+	// Name is used as our Display Name in our HTTP GUI.
+	// Name can contain any characters but must be less than 255 bytes in length.
+	Name string `json:"name,omitempty"`
+	// Binary is the relative path to the executable
+	Binary string `json:"binary,omitempty"`
+	// Working Directory is the ABSOLUTE Path to our Application Directory.
+	// Binary, LogDirectory, and PidPath are RELATIVE to this Path!
+	//
+	// The only time WorkingDirectory is allowed to be relative is if we're prefixed with ~/
+	// If prefixed with ~/, we will then replace it with our current users home directory.
 	WorkingDirectory string `json:"working-directory,omitempty"`
-	// Log Directory for stderr and stdout
+	// Log Directory is the relative path to our log directory.
+	// STDErr and STDOut Logs are held in a `YEAR/MONTH/DAY` sub folder.
 	LogDirectory string `json:"log-directory,omitempty"`
-	// path to pid file
-	// PID is optional, it is only required when using the PATROL or APP keepalive methods
+	// Path is the relative path to our PID file.
+	// PID is optional, it is only required when using the KeepAlive method: APP_KEEPALIVE_PID_APP
+	// Our PID file must ONLY contain the integer of our current PID
 	PIDPath string `json:"pid-path,omitempty"`
-	// should we verify that the PID belongs to Binary?
-	// the reason for this is that it is technically possible for your App to write a PID to file, exit, and then for another long running service to start with this same PID
-	// the problem here is that that other long running process would be confused for our App and we would assume it is running
-	// the only solution is to verify the processes name OR for you to continuously write your PID to file in intervals, say write to PID every 10 seconds
-	// the problem with the constant PID writing is that should your parent fork and create a child, you would want to stop writing the parent PID and only write the child PID!
+	// PIDVerify - Should we verify that our PID belongs to Binary?
+	// PIDVerify is optional, it is only supported when using the KeepAlive method: APP_KEEPALIVE_PID_APP
+	// This currently is NOT supported.
+	// By default when we execute an App - `ps aux` will report our FULL PATH and BINARY as our first Arg.
+	// If our process should fork, we're unsure of how this will change. We may have to compare that PID contains at the very least Binary in the first Arg.
 	PIDVerify bool `json:"pid-verify,omitempty"`
-	// if Disabled is true the App won't be executed until enabled
-	// the only way to enable this once loaded is to use an API or restart Patrol
-	// if Disabled is true the App MAY be running, we will just avoid watching it!
+	// If Disabled is true our App won't be executed until enabled.
+	// The only way to enable an App once Patrol is started is to use the API or restart Patrol
+	// If we are Disabled and we discover an App that is running, we will signal it to stop.
 	Disabled bool `json:"disabled,omitempty"`
-	// clear keyvalue on new instance?
+	// KeyValueClear if true will cause our App KeyValue to be cleared once a new instance of our App is started.
 	KeyValueClear bool `json:"keyvalue-clear,omitempty"`
-	// optionally, we can require a secret for ping and modification to succeed
-	// we're not going to throttle comparing our secret
-	// choose a secret with enough bits of uniqueness and don't make your patrol instance public
-	// if you are worried about your secret being public, use TLS and HTTP, DO NOT USE UDP!!!
+	// If Secret is set, we will require a secret to be passed when pinging and modifying the state of our App from our HTTP and UDP API.
+	// We are not going to throttle comparing our secret. Choose a secret with enough bits of uniqueness and don't make your Patrol instance public!
+	// If you are worried about your secret being public, use TLS and HTTP, DO NOT USE UDP!!!
 	Secret string `json:"secret,omitempty"`
 	////////////
 	// os.Cmd //
 	////////////
-	// we can optionally run our executable for a set duration
-	// timeout is in Seconds
-	// 0 is disabled by default
-	//
-	// it's unclear what will happen with this if our process exits
-	// we may want to enable this only for APP_KEEPALIVE_PID_PATROL - because thats the only time we will have full control over a process
+	// ExecuteTimeout is an optional value in seconds of how long we will run our App for.
+	// A Value of 0 will disable this.
 	ExecuteTimeout int `json:"execute-timeout,omitempty"`
 	// Args holds command line arguments, including the command as Args[0].
 	// If the Args field is empty or nil, Run uses {Path}.
@@ -82,25 +88,22 @@ type ConfigApp struct {
 	// If os.Cmd.Env is nil, the new process uses the current process's environment.
 	// If os.Cmd.Env contains duplicate environment keys, only the last value in the slice for each duplicate key is used.
 	//
-	// we're going to include our own patrol related environment variables
-	// so EnvParent would be important, since if a user expects nil Env they'll never get parent variables
+	// We're going to include our own Patrol related environment variables, so EnvParent is required if we wish to include parent values.
 	Env []string `json:"env,omitempty"`
-	// if we want to optionally include our own args AND and still keep our original parent args we MUST use this!
+	// If EnvParent is true, we will prepend all of our Patrol environment variables to the execution of our process.
 	EnvParent bool `json:"env-parent,omitempty"`
-	// these are NOT supported with JSON for obvious reasons
-	// these will have to be set manually!!!
-	// extra execute options
-	// these can dynamically return new values on each execute
+	// These options are only available when you extend Patrol as a library
+	// These values will NOT be able to be set from `config.json` - They must be set manually
 	//
-	// extra args are appended at the very end, so they could overwrite anything that comes before
+	// ExtraArgs is an optional set of values that will be appended to Args.
 	ExtraArgs func(
 		app *App,
 	) []string `json:"-"`
-	// extra env are appended at the very end, so they could overwrite anything that comes before
+	// ExtraEnv is an optional set of values that will be appended to Env.
 	ExtraEnv func(
 		app *App,
 	) []string `json:"-"`
-	// Stdin, Stdout, Stderr// Stdin specifies the process's standard input.
+	// Stdin specifies the process's standard input.
 	//
 	// If Stdin is nil, the process reads from the null device (os.DevNull).
 	//
@@ -128,43 +131,50 @@ type ConfigApp struct {
 	//
 	// If Stdout and Stderr are the same writer, and have a type that can
 	// be compared with ==, at most one goroutine at a time will call Write.
+	//
+	// If this value is nil, Patrol will create its own file located in our Log Directory.
+	// If this value is nil, this file will also be able to be read from the HTTP GUI.
+	//
+	// TODO: add an option to merge Stdout and Stderr if both values are nil.
 	Stdout io.Writer `json:"-"`
 	Stderr io.Writer `json:"-"`
 	// ExtraFiles specifies additional open files to be inherited by the
 	// new process. It does not include standard input, standard output, or
 	// standard error. If non-nil, entry i becomes file descriptor 3+i.
-	//
-	// this is not a slice since we may want to change it in the future
-	// std err/out/err is easier to deal with since you can wrap it anyway you want
 	ExtraFiles func(
 		app *App,
 	) []*os.File `json:"-"`
-	// Triggers
-	// we're going to allow our Start function to overwrite if our App is Disabled
-	// this will be just incase we want to hold a disabled state outside of this app, such as in a database, just incase we crash
-	// we'll check the value of App.disabled on return
+	// TriggerStart is called from tick in runApps() before we attempt to execute an App.
 	TriggerStart func(
 		app *App,
 	) `json:"-"`
+	// TriggerStarted is called from tick in runApps() and isAppRunning()
+	// This is called after we either execute a new App or we discover a newly running App.
 	TriggerStarted func(
 		app *App,
 	) `json:"-"`
+	// TriggerStartedPinged is called from App.apiRequest() when we discover a newly running App from a Ping request.
 	TriggerStartedPinged func(
 		app *App,
 	) `json:"-"`
+	// TriggerStartFailed is called from tick in runApps() when we fail to execute a new App.
 	TriggerStartFailed func(
 		app *App,
 	) `json:"-"`
+	// TriggerRunning is called from tick() when we discover an App is running.
 	TriggerRunning func(
 		app *App,
 	) `json:"-"`
+	// TriggerDisabled is called from tick() when we discover an App that is disabled.
 	TriggerDisabled func(
 		app *App,
 	) `json:"-"`
+	// TriggerClosed is called from App.close() when we discover a previous instance of an App is closed.
 	TriggerClosed func(
 		app *App,
 		history *History,
 	) `json:"-"`
+	// TriggerPinged is from App.apiRequest() when we discover an App is running from a Ping request.
 	TriggerPinged func(
 		app *App,
 	) `json:"-"`
