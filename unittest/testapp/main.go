@@ -19,6 +19,20 @@ import (
 
 func main() {
 	start := time.Now()
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Llongfile)
+	unittesting_server := false
+	if os.Getenv(patrol.PATROL_ENV_UNITTEST_KEY) == patrol.PATROL_ENV_UNITTEST_VALUE {
+		// unittesting!!!
+		unittesting_server = true
+	}
+	// get wd
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Printf("failed get working directory: %s\n", err)
+		os.Exit(253)
+		return
+	}
+	log.Printf("wd: \"%s\"\n", wd)
 	// we need to get our app id
 	id := os.Getenv(patrol.APP_ENV_APP_ID)
 	if id == "" {
@@ -105,7 +119,12 @@ func main() {
 				// we're going to ping every second
 				case <-time.After(time.Second):
 					// build POST body
-					request := fmt.Sprintf(`{"id":"%s","group":"app","ping":true,"pid":%d}`, id, os.Getpid())
+					extra := ""
+					if unittesting_server {
+						// we're going to trigger run_once
+						extra = fmt.Sprintf(",\"toggle\":%d", patrol.API_TOGGLE_STATE_RUNONCE_ENABLE)
+					}
+					request := fmt.Sprintf(`{"id":"%s","group":"app","ping":true,"pid":%d%s}`, id, os.Getpid(), extra)
 					log.Printf("ping: %d `%s`\n", p, request)
 					response, err := http.Post(
 						fmt.Sprintf("http://%s/api/", listeners[0]),
@@ -113,7 +132,12 @@ func main() {
 						strings.NewReader(request),
 					)
 					if err != nil {
-						log.Fatalf("http failed to POST: \"%s\" Err: \"%s\"\n", listeners[0], err)
+						s := fmt.Sprintf("http failed to POST: \"%s\" Err: \"%s\"\n", listeners[0], err)
+						if unittesting_server {
+							log.Println(s)
+						} else {
+							log.Fatalln(s)
+						}
 						return
 					}
 					if response.StatusCode != 200 {
@@ -124,15 +148,20 @@ func main() {
 					body, err := ioutil.ReadAll(response.Body)
 					if err != nil {
 						response.Body.Close()
-						log.Fatalf("http failed to read response.Body: \"%s\" Err: \"%s\"\n", listeners[0], err)
+						s := fmt.Sprintf("http failed to read response.Body: \"%s\" Err: \"%s\"\n", listeners[0], err)
+						if unittesting_server {
+							log.Println(s)
+						} else {
+							log.Fatalln(s)
+						}
 						return
 					}
 					response.Body.Close()
 					// read something
-					req := &patrol.API_Request{}
+					resp := &patrol.API_Response{}
 					// unmarshal
-					if err = json.Unmarshal(body, req); err != nil ||
-						!req.IsValid() {
+					if err = json.Unmarshal(body, resp); err != nil ||
+						!resp.IsValid() {
 						// failed to unmarshal
 						log.Fatalf("http failed to unmarshal JSON - Err: \"%s\"\n", err)
 						return
@@ -196,11 +225,21 @@ func main() {
 				// here we should up our attempts just in case, otherwise we may only send 2 packets
 				case <-time.After(time.Millisecond * 500):
 					// build JSON body
-					request := fmt.Sprintf(`{"id":"%s","group":"app","ping":true,"pid":%d}`, id, os.Getpid())
+					extra := ""
+					if unittesting_server {
+						// we're going to trigger run_once
+						extra = fmt.Sprintf(",\"toggle\":%d", patrol.API_TOGGLE_STATE_RUNONCE_ENABLE)
+					}
+					request := fmt.Sprintf(`{"id":"%s","group":"app","ping":true,"pid":%d%s}`, id, os.Getpid(), extra)
 					log.Printf("ping: %d `%s`\n", p, request)
 					_, err := conn.Write([]byte(request))
 					if err != nil {
-						log.Fatalf("udp failed to write: \"%s\" Err: \"%s\"\n", listeners[0], err)
+						s := fmt.Sprintf("udp failed to write: \"%s\" Err: \"%s\"\n", listeners[0], err)
+						if unittesting_server {
+							log.Println(s)
+						} else {
+							log.Fatalln(s)
+						}
 						return
 					}
 					// DO NOT READ A RESPONSE HERE!!!
@@ -238,16 +277,21 @@ func main() {
 							return
 						}
 						ping_mu.Unlock()
-						log.Fatalf("udp failed to read - Err: \"%s\"\n", err)
+						s := fmt.Sprintf("udp failed to read - Err: \"%s\"\n", err)
+						if unittesting_server {
+							log.Println(s)
+						} else {
+							log.Fatalln(s)
+						}
 						return
 					}
 					// read something
-					request := &patrol.API_Request{}
+					resp := &patrol.API_Response{}
 					// unmarshal
-					if err = json.Unmarshal(body[:n], request); err != nil ||
-						!request.IsValid() {
+					if err = json.Unmarshal(body[:n], resp); err != nil ||
+						!resp.IsValid() {
 						// failed to unmarshal
-						log.Fatalf("udp failed to unmarshal JSON - Err: \"%s\"\n", err)
+						log.Fatalf("http failed to unmarshal JSON - Err: \"%s\"\n", err)
 						return
 					}
 					ping_mu.Lock()

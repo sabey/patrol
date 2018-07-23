@@ -7,6 +7,12 @@ import (
 )
 
 func (self *Patrol) signalStopApps() {
+	if self.config.unittesting {
+		// WE'RE UNITTESTING!!!
+		// we DO NOT want to send a signal on stop!!
+		// we need predictable behavior since we will kill both parent and child process to test patrol
+		return
+	}
 	var wg sync.WaitGroup
 	log.Printf("./patrol.signalStopApps(): signalling to all apps that we are stopping!\n")
 	for _, app := range self.apps {

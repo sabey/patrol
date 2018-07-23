@@ -436,6 +436,12 @@ func (self *App) startApp() error {
 		// some processes may notice they receive 2 SIGTERMS, I'm not sure why it's doing this, just ignore additional signals
 		Pdeathsig: syscall.SIGTERM,
 	}
+	if self.patrol.config.unittesting {
+		// WE'RE UNITTESTING!!!
+		// we DO NOT want to send a signal on death!!
+		// we need predictable behavior since we will kill both parent and child process to test patrol
+		cmd.SysProcAttr.Pdeathsig = 0
+	}
 	// start will start our process but will not wait for execute to finish running
 	if err := cmd.Start(); err != nil {
 		// failed to start

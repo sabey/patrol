@@ -129,6 +129,8 @@ type Config struct {
 	TriggerStopped func(
 		patrol *Patrol,
 	) `json:"-"`
+	// this is only used internally and checked once on creation
+	unittesting bool
 }
 
 func (self *Config) IsValid() bool {

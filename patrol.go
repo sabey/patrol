@@ -1,6 +1,7 @@
 package patrol
 
 import (
+	"log"
 	"os"
 	"sabey.co/patrol/cas"
 	"sync"
@@ -14,6 +15,11 @@ const (
 	HISTORY_MIN       = 5
 	HISTORY_MAX       = 1000
 	HISTORY_DEFAULT   = 100
+)
+
+const (
+	PATROL_ENV_UNITTEST_KEY   = `PATROL_UNITTEST`
+	PATROL_ENV_UNITTEST_VALUE = `I KNOW WHAT I AM DOING`
 )
 
 func CreatePatrol(
@@ -35,6 +41,19 @@ func CreatePatrol(
 		apps:     make(map[string]*App),
 		services: make(map[string]*Service),
 	}
+	// we're going to check if we're unittesting
+	// this isn't the ideal way to do this, but it will work
+	if os.Getenv(PATROL_ENV_UNITTEST_KEY) == PATROL_ENV_UNITTEST_VALUE {
+		log.Println("./patrol.CreatePatrol(): We are running in unittesting mode!")
+		// unittesting!!!
+		p.config.unittesting = true
+		// we're going to override tickevery so we don't have to wait ages for unittests
+		p.config.TickEvery = 2
+		// we won't start HTTP/UDP apps until PingTimeout * 2 on boot
+		// we're going to override that it's at least something low
+		p.config.PingTimeout = 3
+	}
+	// add apps
 	for id, app := range config.Apps {
 		p.apps[id] = &App{
 			id:     id,
@@ -43,6 +62,7 @@ func CreatePatrol(
 			o:      cas.CreateApp(app.Disabled),
 		}
 	}
+	// add services
 	for id, service := range config.Services {
 		p.services[id] = &Service{
 			id:     id,

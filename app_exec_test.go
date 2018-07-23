@@ -39,7 +39,7 @@ func TestAppExecPatrolPID(t *testing.T) {
 		patrol: &Patrol{
 			config: &Config{
 				History:   5,
-				Timestamp: time.RFC1123Z,
+				Timestamp: time.RFC3339,
 			},
 		},
 		config: &ConfigApp{
@@ -544,7 +544,7 @@ func TestAppExecHTTP(t *testing.T) {
 
 	config := &Config{
 		History:     5,
-		Timestamp:   time.RFC1123Z,
+		Timestamp:   time.RFC3339,
 		PingTimeout: APP_PING_TIMEOUT_MIN, // we're going to overwrite this internally
 		Apps: map[string]*ConfigApp{
 			"http": &ConfigApp{
@@ -691,7 +691,7 @@ func TestAppExecUDP(t *testing.T) {
 
 	config := &Config{
 		History:     5,
-		Timestamp:   time.RFC1123Z,
+		Timestamp:   time.RFC3339,
 		PingTimeout: APP_PING_TIMEOUT_MIN, // we're going to overwrite this internally
 		Apps: map[string]*ConfigApp{
 			"udp": &ConfigApp{
