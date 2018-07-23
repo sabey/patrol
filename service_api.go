@@ -104,14 +104,14 @@ func (self *Service) apiResponse(
 	}
 	if !self.o.GetStarted().IsZero() {
 		result.Started = &Timestamp{
-			Time: self.o.GetStarted(),
-			f:    self.patrol.config.Timestamp,
+			Time:            self.o.GetStarted(),
+			TimestampFormat: self.patrol.config.Timestamp,
 		}
 	}
 	if !self.o.GetLastSeen().IsZero() {
 		result.LastSeen = &Timestamp{
-			Time: self.o.GetLastSeen(),
-			f:    self.patrol.config.Timestamp,
+			Time:            self.o.GetLastSeen(),
+			TimestampFormat: self.patrol.config.Timestamp,
 		}
 	}
 	return result

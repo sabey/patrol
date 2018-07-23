@@ -192,8 +192,8 @@ func (self *App) apiResponse(
 	}
 	if !self.o.GetStarted().IsZero() {
 		result.Started = &Timestamp{
-			Time: self.o.GetStarted(),
-			f:    self.patrol.config.Timestamp,
+			Time:            self.o.GetStarted(),
+			TimestampFormat: self.patrol.config.Timestamp,
 		}
 	}
 	if self.o.GetLastSeen().IsZero() {
@@ -203,15 +203,15 @@ func (self *App) apiResponse(
 				// we should set lastseen to now
 				// we're responsible for this service to always be running
 				result.LastSeen = &Timestamp{
-					Time: time.Now(),
-					f:    self.patrol.config.Timestamp,
+					Time:            time.Now(),
+					TimestampFormat: self.patrol.config.Timestamp,
 				}
 			}
 		}
 	} else {
 		result.LastSeen = &Timestamp{
-			Time: self.o.GetLastSeen(),
-			f:    self.patrol.config.Timestamp,
+			Time:            self.o.GetLastSeen(),
+			TimestampFormat: self.patrol.config.Timestamp,
 		}
 	}
 	return result
