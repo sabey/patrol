@@ -1,6 +1,7 @@
 package patrol
 
 import (
+	"os"
 	"sabey.co/patrol/cas"
 	"sync"
 	"time"
@@ -77,6 +78,9 @@ type Patrol struct {
 }
 
 func (self *Patrol) IsValid() bool {
+	if self == nil {
+		return false
+	}
 	return self.config.IsValid()
 }
 func (self *Patrol) IsRunning() bool {

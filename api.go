@@ -1,5 +1,9 @@
 package patrol
 
+import (
+	"encoding/json"
+)
+
 const (
 	API_TOGGLE_STATE_ENABLE = iota + 1
 	API_TOGGLE_STATE_DISABLE
@@ -121,6 +125,31 @@ type API_Response struct {
 	// We need to know if our CAS was successful or not!
 	// I prefer to have this as invalid and not valid as most requests without a CAS will be valid!
 	CASInvalid bool `json:"cas-invalid,omitempty"`
+	// this is for unmarshal only
+	patrol *Patrol
+}
+
+// I'm not sure how else to override/fix our timestamp when using a custom Timestamp Parse in Unmarshal
+// we're going to clone our struct except for []History
+// we will temporarily use json.RawMessage and then we will create a History object for each result
+// this really isn't that aesthetic but it works well!
+type api_response struct {
+	ID         string                 `json:"id,omitempty"`
+	Group      string                 `json:"group,omitempty"`
+	Name       string                 `json:"name,omitempty"`
+	PID        uint32                 `json:"pid,omitempty"`
+	Started    *Timestamp             `json:"started,omitempty"`
+	LastSeen   *Timestamp             `json:"lastseen,omitempty"`
+	Disabled   bool                   `json:"disabled,omitempty"`
+	Restart    bool                   `json:"restart,omitempty"`
+	RunOnce    bool                   `json:"run-once,omitempty"`
+	Shutdown   bool                   `json:"shutdown,omitempty"`
+	History    []json.RawMessage      `json:"history,omitempty"`
+	KeyValue   map[string]interface{} `json:"keyvalue,omitempty"`
+	Secret     bool                   `json:"secret,omitempty"`
+	Errors     []string               `json:"errors,omitempty"`
+	CAS        uint64                 `json:"cas,omitempty"`
+	CASInvalid bool                   `json:"cas-invalid,omitempty"`
 }
 
 func (self *API_Response) IsValid() bool {
@@ -128,4 +157,81 @@ func (self *API_Response) IsValid() bool {
 		return false
 	}
 	return true
+}
+func (self *API_Response) UnmarshalJSON(
+	data []byte,
+) error {
+	result := &api_response{
+		Started:  self.NewAPITimestamp(),
+		LastSeen: self.NewAPITimestamp(),
+	}
+	if err := json.Unmarshal(data, result); err != nil {
+		return err
+	}
+	if result == nil {
+		return nil
+	}
+	// unmarshal history
+	if l := len(result.History); l > 0 {
+		self.History = make([]*History, 0, l)
+		for i := 0; i < l; i++ {
+			h := self.NewAPIHistory()
+			if err := json.Unmarshal(result.History[i], h); err != nil {
+				return err
+			}
+			self.History = append(self.History, h)
+		}
+	}
+	// fix response
+	self.ID = result.ID
+	self.Group = result.Group
+	self.Name = result.Name
+	self.PID = result.PID
+	self.Started = result.Started
+	self.LastSeen = result.LastSeen
+	self.Disabled = result.Disabled
+	self.Restart = result.Restart
+	self.RunOnce = result.RunOnce
+	self.Shutdown = result.Shutdown
+	self.KeyValue = result.KeyValue
+	self.Secret = result.Secret
+	self.Errors = result.Errors
+	self.CAS = result.CAS
+	self.CASInvalid = result.CASInvalid
+	return nil
+}
+func (self *API_Response) NewAPITimestamp() *Timestamp {
+	if !self.patrol.IsValid() {
+		return &Timestamp{}
+	}
+	return self.patrol.NewAPITimestamp()
+}
+func (self *API_Response) NewAPIHistory() *History {
+	if !self.patrol.IsValid() {
+		return &History{
+			Started:  &Timestamp{},
+			LastSeen: &Timestamp{},
+			Stopped:  &Timestamp{},
+		}
+	}
+	return self.patrol.NewAPIHistory()
+}
+
+// use this when our response needs a reference to patrol for custom timestamp unmarshaling
+func (self *Patrol) NewAPIResponse() *API_Response {
+	return &API_Response{
+		patrol: self,
+	}
+}
+func (self *Patrol) NewAPIHistory() *History {
+	return &History{
+		Started:  self.NewAPITimestamp(),
+		LastSeen: self.NewAPITimestamp(),
+		Stopped:  self.NewAPITimestamp(),
+	}
+}
+func (self *Patrol) NewAPITimestamp() *Timestamp {
+	return &Timestamp{
+		TimestampFormat: self.config.Timestamp,
+	}
 }

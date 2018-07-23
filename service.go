@@ -165,8 +165,8 @@ func (self *Service) close() {
 		}
 		h := &History{
 			Stopped: &Timestamp{
-				Time: time.Now(),
-				f:    self.patrol.config.Timestamp,
+				Time:            time.Now(),
+				TimestampFormat: self.patrol.config.Timestamp,
 			},
 			Disabled: self.o.IsDisabled(),
 			Restart:  self.o.IsRestart(),
@@ -177,14 +177,14 @@ func (self *Service) close() {
 		}
 		if !self.o.GetStarted().IsZero() {
 			h.Started = &Timestamp{
-				Time: self.o.GetStarted(),
-				f:    self.patrol.config.Timestamp,
+				Time:            self.o.GetStarted(),
+				TimestampFormat: self.patrol.config.Timestamp,
 			}
 		}
 		if !self.o.GetLastSeen().IsZero() {
 			h.LastSeen = &Timestamp{
-				Time: self.o.GetLastSeen(),
-				f:    self.patrol.config.Timestamp,
+				Time:            self.o.GetLastSeen(),
+				TimestampFormat: self.patrol.config.Timestamp,
 			}
 		}
 		self.history = append(self.history, h)

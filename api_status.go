@@ -21,8 +21,8 @@ func (self *Patrol) GetStatus() *API_Status {
 	}
 	if !started.IsZero() {
 		result.Started = &Timestamp{
-			Time: started,
-			f:    self.config.Timestamp,
+			Time:            started,
+			TimestampFormat: self.config.Timestamp,
 		}
 	}
 	for id, app := range self.apps {

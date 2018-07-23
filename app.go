@@ -225,8 +225,8 @@ func (self *App) close() {
 			// pid is garaunteed to always exist for APP_KEEPALIVE_PID_PATROL
 			PID: self.o.GetPID(),
 			Stopped: &Timestamp{
-				Time: now,
-				f:    self.patrol.config.Timestamp,
+				Time:            now,
+				TimestampFormat: self.patrol.config.Timestamp,
 			},
 			Disabled: self.o.IsDisabled(),
 			Restart:  self.o.IsRestart(),
@@ -239,8 +239,8 @@ func (self *App) close() {
 		}
 		if !self.o.GetStarted().IsZero() {
 			h.Started = &Timestamp{
-				Time: self.o.GetStarted(),
-				f:    self.patrol.config.Timestamp,
+				Time:            self.o.GetStarted(),
+				TimestampFormat: self.patrol.config.Timestamp,
 			}
 		}
 		if self.o.GetLastSeen().IsZero() {
@@ -250,15 +250,15 @@ func (self *App) close() {
 					// we should set lastseen to now
 					// we're responsible for this service to always be running
 					h.LastSeen = &Timestamp{
-						Time: now,
-						f:    self.patrol.config.Timestamp,
+						Time:            now,
+						TimestampFormat: self.patrol.config.Timestamp,
 					}
 				}
 			}
 		} else {
 			h.LastSeen = &Timestamp{
-				Time: self.o.GetLastSeen(),
-				f:    self.patrol.config.Timestamp,
+				Time:            self.o.GetLastSeen(),
+				TimestampFormat: self.patrol.config.Timestamp,
 			}
 		}
 		self.history = append(self.history, h)
