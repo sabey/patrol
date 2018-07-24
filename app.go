@@ -418,17 +418,28 @@ func (self *App) startApp() error {
 	}
 	// we still have to set our WorkingDirectory
 	cmd.Dir = self.config.WorkingDirectory
-	// SysProcAttr holds optional, operating system-specific attributes.
+	// SysProcAttr holds optional operating system-specific attributes.
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		// we want our children to have their own process group IDs
-		// the reason for this is that we want them to run on their own
-		// our shell by default which will act as a catchall for the signals
-		// ideally we would like our children to receive their own signal
-		Setpgid: true,
-		// 0 causes us to set the group id to the process id
+		// so long as our KeepAlive method IS NOT APP_KEEPALIVE_PID_PATROL our children will have their own process group IDs
+		// if we're using APP_KEEPALIVE_PID_PATROL we want to also receive any signals sent to our patrol PGID
+		//
+		// in any scenario, we will always make a best attempt to signal our children on shutdown or if our parent exits
+		// APP_KEEPALIVE_PID_PATROL is the exception to this, we can't garauntee a children process will be signalled or even that that child will handle our signal!
+		// if this is truly important to you, you should use a different KeepAlive method!
+		// ideally in the future we may want to add support for something similar to `killall APP` on initial patrol start
+		// we may also want to look into lock files as well as writing our PID to file when using APP_KEEPALIVE_PID_PATROL
+		//
+		// as of now, the only way we can really overcome this is to:
+		// 1. share the same process group
+		// 2. patrol signals children on close
+		// 3. use processes that won't break if a parallel process is run
+		//
+		Setpgid: self.config.KeepAlive != APP_KEEPALIVE_PID_PATROL,
+		// PGID should never be set
 		Pgid: 0,
 		// Signal that the process will get when its parent dies (Linux only)
-		// we can't rely on this and if were able to we should notify our children
+		//
+		// this signal should not be relied upon for shutting down your App, it is a courtesy
 		//
 		// The SIGTERM signal is a generic signal used to cause program termination.
 		// This signal can be blocked, handled, and ignored. It is the normal way to politely ask a program to terminate

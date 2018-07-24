@@ -1,0 +1,12 @@
+{
+  "apps": {
+    "pid-patrol-testapp": {
+      "keepalive": 1,
+      "name": "Patrol PID Test App",
+      "binary": "testapp",
+      "working-directory": "testapp",
+      "log-directory": "logs",
+      "pid-path": "testapp.pid"
+    }
+  }
+}

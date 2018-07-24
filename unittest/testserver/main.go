@@ -110,6 +110,9 @@ func main() {
 	}
 	// override app triggers
 	for _, a := range config.Apps {
+		// overwrite stdout/err
+		a.Stdout = os.Stdout
+		a.Stderr = os.Stderr
 		// prefix working directories!!!
 		a.WorkingDirectory = filepath.Clean(wd + "/../" + a.WorkingDirectory)
 		// add env
@@ -211,12 +214,12 @@ func main() {
 	}
 	p, err = patrol.CreatePatrol(config)
 	if err != nil {
-		log.Printf("./patrol/patrol.main(): failed to Create Patrol: %s\n", err)
+		log.Printf("./patrol/unittest/testserver.main(): failed to Create Patrol: %s\n", err)
 		os.Exit(255)
 		return
 	}
 	// start patrol
-	log.Println("./patrol/patrol.main(): Starting Patrol")
+	log.Println("./patrol/unittest/testserver.main(): Starting Patrol")
 	p.Start()
 	go HTTP()
 	go UDP()
@@ -257,76 +260,76 @@ func main() {
 		// handle signals and shutdown
 		select {
 		case <-shutdown_c:
-			log.Println("./unittest/testserver.main(): listener shutdown!")
+			log.Println("./patrol/unittest/testserver.main(): listener shutdown!")
 			done = true
 			break
 		case sig := <-signals:
 			switch sig {
 			case syscall.SIGHUP:
 				// Hangup / ssh broken pipe
-				log.Println("./patrol/patrol.main(): SIGHUP")
+				log.Println("./patrol/unittest/testserver.main(): SIGHUP")
 				done = true
 				break
 			case syscall.SIGINT:
 				// terminate process
 				// ctrl+c
-				log.Println("./patrol/patrol.main(): SIGINT")
+				log.Println("./patrol/unittest/testserver.main(): SIGINT")
 				done = true
 				break
 			case syscall.SIGQUIT:
 				// ctrl+4 or ctrl+|
-				log.Println("./patrol/patrol.main(): SIGQUIT")
+				log.Println("./patrol/unittest/testserver.main(): SIGQUIT")
 				done = true
 				break
 			case syscall.SIGKILL:
 				// kill -9
 				// shutdown NOW
-				log.Println("./patrol/patrol.main(): SIGKILL")
+				log.Println("./patrol/unittest/testserver.main(): SIGKILL")
 				done = true
 				break
 			case syscall.SIGTERM:
 				// killall service
 				// gracefully shutdown NOW
-				log.Println("./patrol/patrol.main(): SIGTERM")
+				log.Println("./patrol/unittest/testserver.main(): SIGTERM")
 				done = true
 				break
 			case syscall.SIGTSTP:
 				// this will cause the program to go to the background if in a cli
 				// ctrl+z
-				log.Println("./patrol/patrol.main(): SIGTSTP")
+				log.Println("./patrol/unittest/testserver.main(): SIGTSTP")
 				done = true
 				break
 			case syscall.SIGUSR1:
 				// unreserved signal - handle however we want
-				log.Println("./patrol/patrol.main(): SIGUSR1 - Ignored")
+				log.Println("./patrol/unittest/testserver.main(): SIGUSR1 - Ignored")
 			case syscall.SIGUSR2:
 				// unreserved signal - handle however we want
-				log.Println("./patrol/patrol.main(): SIGUSR2 - Ignored")
+				log.Println("./patrol/unittest/testserver.main(): SIGUSR2 - Ignored")
 			default:
 				// unknown
 				// do nothing
-				log.Printf("./patrol/patrol.main(): Unknown Signal Ignored: \"%v\"\n", sig)
+				log.Printf("./patrol/unittest/testserver.main(): Unknown Signal Ignored: \"%v\"\n", sig)
 			}
 		}
 		if done {
 			break
 		}
 	}
-	log.Println("./patrol/patrol.main(): Stopping Patrol")
+	log.Println("./patrol/unittest/testserver.main(): Stopping Patrol")
 	p.Shutdown()
 	// wait for patrol to stop
-	log.Println("./patrol/patrol.main(): Waiting for Patrol to stop!")
+	log.Println("./patrol/unittest/testserver.main(): Waiting for Patrol to stop!")
 	for {
 		// we're going to add a saftey measure incase we fail to stop
 		go func() {
 			<-time.After(time.Minute * 3)
-			log.Fatalln("./patrol/patrol.main(): Failed to Stop Patrol, Dying!")
+			log.Fatalln("./patrol/unittest/testserver.main(): Failed to Stop Patrol, Dying!")
 		}()
 		if !p.IsRunning() {
 			// we're done!
 			break
 		}
 	}
-	log.Printf("./patrol/patrol.main(): Patrol ran for: %s\n", time.Now().Sub(start))
+	log.Printf("./patrol/unittest/testserver.main(): Patrol ran for: %s\n", time.Now().Sub(start))
 	log.Println("good bye!")
 }
