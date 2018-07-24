@@ -1,0 +1,12 @@
+{
+  "apps": {
+    "pid-app-testapp": {
+      "keepalive": 2,
+      "name": "APP PID Test App",
+      "binary": "testapp",
+      "working-directory": "testapp",
+      "log-directory": "logs",
+      "pid-path": "testapp.pid"
+    }
+  }
+}
