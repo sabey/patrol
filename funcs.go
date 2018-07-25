@@ -57,3 +57,10 @@ func IsPathClean(path string) bool {
 	// does not match
 	return false
 }
+func dereference(
+	data []byte,
+) []byte {
+	safe := make([]byte, len(data))
+	copy(safe, data)
+	return safe
+}

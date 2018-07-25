@@ -1,7 +1,13 @@
 package patrol
 
+import (
+	"encoding/json"
+)
+
 type ConfigHTTP struct {
 	Listen string `json:"listen,omitempty"`
+	// Extra Unstructured Data
+	X json.RawMessage `json:"x,omitempty"`
 	// TODO: https?
 }
 
@@ -17,12 +23,15 @@ func (self *ConfigHTTP) Clone() *ConfigHTTP {
 	}
 	config := &ConfigHTTP{
 		Listen: self.Listen,
+		X:      dereference(self.X),
 	}
 	return config
 }
 
 type ConfigUDP struct {
 	Listen string `json:"listen,omitempty"`
+	// Extra Unstructured Data
+	X json.RawMessage `json:"x,omitempty"`
 }
 
 func (self *ConfigUDP) IsValid() bool {
@@ -37,6 +46,7 @@ func (self *ConfigUDP) Clone() *ConfigUDP {
 	}
 	config := &ConfigUDP{
 		Listen: self.Listen,
+		X:      dereference(self.X),
 	}
 	return config
 }

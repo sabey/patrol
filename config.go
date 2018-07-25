@@ -129,6 +129,8 @@ type Config struct {
 	TriggerStopped func(
 		patrol *Patrol,
 	) `json:"-"`
+	// Extra Unstructured Data
+	X json.RawMessage `json:"x,omitempty"`
 	// this is only used internally and checked once on creation
 	unittesting bool
 }
@@ -159,6 +161,7 @@ func (self *Config) Clone() *Config {
 		TriggerStarted:  self.TriggerStarted,
 		TriggerTick:     self.TriggerTick,
 		TriggerStopped:  self.TriggerStopped,
+		X:               dereference(self.X),
 	}
 	for k, v := range self.Apps {
 		config.Apps[k] = v.Clone()

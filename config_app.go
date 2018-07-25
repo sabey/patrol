@@ -1,6 +1,7 @@
 package patrol
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -180,6 +181,8 @@ type ConfigApp struct {
 	TriggerPinged func(
 		app *App,
 	) `json:"-"`
+	// Extra Unstructured Data
+	X json.RawMessage `json:"x,omitempty"`
 }
 
 func (self *ConfigApp) IsValid() bool {
@@ -223,6 +226,7 @@ func (self *ConfigApp) Clone() *ConfigApp {
 		TriggerDisabled:      self.TriggerDisabled,
 		TriggerClosed:        self.TriggerClosed,
 		TriggerPinged:        self.TriggerPinged,
+		X:                    dereference(self.X),
 	}
 	for k, v := range self.KeyValue {
 		o.KeyValue[k] = v

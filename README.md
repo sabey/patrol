@@ -242,6 +242,8 @@ TriggerStopped func(
 	patrol *Patrol,
 ) `json:"-"`
 
+// Extra Unstructured Data
+X json.RawMessage `json:"x,omitempty"`
 ```
 
 
@@ -430,6 +432,9 @@ TriggerClosed func(
 TriggerPinged func(
 	app *App,
 ) `json:"-"`
+
+// Extra Unstructured Data
+X json.RawMessage `json:"x,omitempty"`
 ```
 
 
@@ -525,6 +530,9 @@ TriggerClosed func(
 	service *Service,
 	history *History,
 	) `json:"-"`
+
+// Extra Unstructured Data
+X json.RawMessage `json:"x,omitempty"`
 ```
 
 

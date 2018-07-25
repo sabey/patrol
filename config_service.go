@@ -1,6 +1,7 @@
 package patrol
 
 import (
+	"encoding/json"
 	"fmt"
 )
 
@@ -94,6 +95,8 @@ type ConfigService struct {
 		service *Service,
 		history *History,
 	) `json:"-"`
+	// Extra Unstructured Data
+	X json.RawMessage `json:"x,omitempty"`
 }
 
 func (self *ConfigService) IsValid() bool {
@@ -132,6 +135,7 @@ func (self *ConfigService) Clone() *ConfigService {
 		TriggerRunning:         self.TriggerRunning,
 		TriggerDisabled:        self.TriggerDisabled,
 		TriggerClosed:          self.TriggerClosed,
+		X:                      dereference(self.X),
 	}
 	for k, v := range self.KeyValue {
 		config.KeyValue[k] = v
