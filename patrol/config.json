@@ -6,7 +6,8 @@
       "binary": "testapp",
       "working-directory": "~/go/src/sabey.co/patrol/unittest/testapp/",
       "log-directory": "logs",
-      "pid-path": "app.pid"
+      "pid-path": "app.pid",
+      "std-merge": true
     },
     "fake": {
       "keepalive": 3,

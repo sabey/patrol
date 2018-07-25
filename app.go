@@ -356,37 +356,70 @@ func (self *App) startApp() error {
 	if self.config.Stdin != nil {
 		cmd.Stdin = self.config.Stdin
 	}
+	// STD Merged?
+	std_merge := self.IsSTDMerged()
 	if self.config.Stdout != nil {
 		cmd.Stdout = self.config.Stdout
 	} else {
-		// we need to create a stdout file
-		// create an ordered log directory
-		// this is the exact same as `mkdir -p`
-		ld := logDir(
-			now,
-			self.config.WorkingDirectory,
-			self.config.LogDirectory,
-		)
-		err := os.MkdirAll(ld, os.ModePerm)
-		if err != nil {
-			log.Printf("./patrol.startApp(): App ID: %s Stdout failed to MkdirAll: \"%s\" Err: \"%s\"\n", self.id, ld, err)
-			return err
+		if !std_merge {
+			// we need to create a stdout file
+			// create an ordered log directory
+			// this is the exact same as `mkdir -p`
+			ld := logDir(
+				now,
+				self.config.WorkingDirectory,
+				self.config.LogDirectory,
+			)
+			err := os.MkdirAll(ld, os.ModePerm)
+			if err != nil {
+				log.Printf("./patrol.startApp(): App ID: %s Stdout failed to MkdirAll: \"%s\" Err: \"%s\"\n", self.id, ld, err)
+				return err
+			}
+			// use now as our unique key
+			fn := fmt.Sprintf("%s/%d.stdout.log", ld, now.UnixNano())
+			cmd.Stdout, err = OpenFile(fn)
+			if err != nil {
+				log.Printf("./patrol.startApp(): App ID: %s Stdout failed to OpenFile: \"%s\" Err: \"%s\"\n", self.id, fn, err)
+				return err
+			}
+			// we CAN NOT defer close this file!!!
+			// we are passing this file handler to the app we are executing
+			// our executed app will handle closing this file descriptor on close
 		}
-		// use now as our unique key
-		fn := fmt.Sprintf("%s/%d.stdout.log", ld, now.UnixNano())
-		cmd.Stdout, err = OpenFile(fn)
-		if err != nil {
-			log.Printf("./patrol.startApp(): App ID: %s Stdout failed to OpenFile: \"%s\" Err: \"%s\"\n", self.id, fn, err)
-			return err
-		}
-		// we CAN NOT defer close this file!!!
-		// we are passing this file handler to the app we are executing
-		// our executed app will handle closing this file descriptor on close
 	}
 	if self.config.Stderr != nil {
 		cmd.Stderr = self.config.Stderr
 	} else {
-		// we need to create a stderr file
+		if !std_merge {
+			// we need to create a stderr file
+			// create an ordered log directory
+			// this is the exact same as `mkdir -p`
+			ld := logDir(
+				now,
+				self.config.WorkingDirectory,
+				self.config.LogDirectory,
+			)
+			err := os.MkdirAll(ld, os.ModePerm)
+			if err != nil {
+				log.Printf("./patrol.startApp(): App ID: %s Stderr failed to MkdirAll: \"%s\" Err: \"%s\"\n", self.id, ld, err)
+				return err
+			}
+			// use now as our unique key
+			fn := fmt.Sprintf("%s/%d.stderr.log", ld, now.UnixNano())
+			cmd.Stderr, err = OpenFile(fn)
+			if err != nil {
+				log.Printf("./patrol.startApp(): App ID: %s Stderr failed to OpenFile: \"%s\" Err: \"%s\"\n", self.id, fn, err)
+				return err
+			}
+			// we CAN NOT defer close this file!!!
+			// we are passing this file handler to the app we are executing
+			// our executed app will handle closing this file descriptor on close
+		}
+	}
+	if std_merge {
+		// merge Stdout and Stderr
+		//
+		// we need to create a stdmerge file
 		// create an ordered log directory
 		// this is the exact same as `mkdir -p`
 		ld := logDir(
@@ -396,16 +429,17 @@ func (self *App) startApp() error {
 		)
 		err := os.MkdirAll(ld, os.ModePerm)
 		if err != nil {
-			log.Printf("./patrol.startApp(): App ID: %s Stderr failed to MkdirAll: \"%s\" Err: \"%s\"\n", self.id, ld, err)
+			log.Printf("./patrol.startApp(): App ID: %s stdmerge failed to MkdirAll: \"%s\" Err: \"%s\"\n", self.id, ld, err)
 			return err
 		}
 		// use now as our unique key
-		fn := fmt.Sprintf("%s/%d.stderr.log", ld, now.UnixNano())
-		cmd.Stderr, err = OpenFile(fn)
+		fn := fmt.Sprintf("%s/%d.stdmerge.log", ld, now.UnixNano())
+		cmd.Stdout, err = OpenFile(fn)
 		if err != nil {
-			log.Printf("./patrol.startApp(): App ID: %s Stderr failed to OpenFile: \"%s\" Err: \"%s\"\n", self.id, fn, err)
+			log.Printf("./patrol.startApp(): App ID: %s stdmerge failed to OpenFile: \"%s\" Err: \"%s\"\n", self.id, fn, err)
 			return err
 		}
+		cmd.Stderr = cmd.Stdout
 		// we CAN NOT defer close this file!!!
 		// we are passing this file handler to the app we are executing
 		// our executed app will handle closing this file descriptor on close
@@ -695,11 +729,15 @@ func (self *App) GetStdoutLog() string {
 		// we never started this app
 		return ""
 	}
+	f := "stdout"
+	if self.IsSTDMerged() {
+		f = "stdmerge"
+	}
 	// we know where our logs are
 	// THIS IS OUR LAST KNOWN LOCATION
 	// IF WE FORK OUR PROCESS, OUR PROCESS MAY NOT PASS STDOUT/STDERR - THEN THIS IS USELESS!!
 	// in our GUI we will offer a fallback to list all of our logs ideally
-	return fmt.Sprintf("%s/%d.stdout.log", self.logDir(), self.o.GetStartedLog().UnixNano())
+	return fmt.Sprintf("%s/%d.%s.log", self.logDir(), self.o.GetStartedLog().UnixNano(), f)
 }
 func (self *App) GetStderrLog() string {
 	self.o.RLock()
@@ -712,9 +750,25 @@ func (self *App) GetStderrLog() string {
 		// we never started this app
 		return ""
 	}
+	f := "stderr"
+	if self.IsSTDMerged() {
+		f = "stdmerge"
+	}
 	// we know where our logs are
 	// THIS IS OUR LAST KNOWN LOCATION
 	// IF WE FORK OUR PROCESS, OUR PROCESS MAY NOT PASS STDOUT/STDERR - THEN THIS IS USELESS!!
 	// in our GUI we will offer a fallback to list all of our logs ideally
-	return fmt.Sprintf("%s/%d.stderr.log", self.logDir(), self.o.GetStartedLog().UnixNano())
+	return fmt.Sprintf("%s/%d.%s.log", self.logDir(), self.o.GetStartedLog().UnixNano(), f)
+}
+func (self *App) IsSTDMerged() bool {
+	if !self.config.StdMerge {
+		return false
+	}
+	if self.config.Stdout != nil ||
+		self.config.Stderr != nil {
+		// we can't merge
+		return false
+	}
+	// Stdout and Stderr is merged
+	return true
 }

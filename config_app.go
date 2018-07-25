@@ -134,10 +134,10 @@ type ConfigApp struct {
 	//
 	// If this value is nil, Patrol will create its own file located in our Log Directory.
 	// If this value is nil, this file will also be able to be read from the HTTP GUI.
-	//
-	// TODO: add an option to merge Stdout and Stderr if both values are nil.
 	Stdout io.Writer `json:"-"`
 	Stderr io.Writer `json:"-"`
+	// Merge Stdout and Stderr into a single file?
+	StdMerge bool `json:"std-merge,omitempty"`
 	// ExtraFiles specifies additional open files to be inherited by the
 	// new process. It does not include standard input, standard output, or
 	// standard error. If non-nil, entry i becomes file descriptor 3+i.
@@ -210,6 +210,7 @@ func (self *ConfigApp) Clone() *ConfigApp {
 		Stdin:                self.Stdin,
 		Stdout:               self.Stdout,
 		Stderr:               self.Stderr,
+		StdMerge:             self.StdMerge,
 		ExtraFiles:           self.ExtraFiles,
 		TriggerStart:         self.TriggerStart,
 		TriggerStarted:       self.TriggerStarted,

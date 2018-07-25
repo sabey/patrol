@@ -65,6 +65,9 @@
 					<a href="/stderr/?group=app&amp;id={{$id}}">Stderr</a> <a href="/stderr/?group=app&amp;id={{$id}}&amp;last=1000"></a><br />
 					{{end}}
 				{{end}}
+				{{if $app.IsSTDMerged}}
+					<b>Stdout and Stderr are merged!</b><br />
+				{{end}}
 			</td>
 			<td valign="top" align="left">
 				{{ template "state.tmpl" $result}}
