@@ -68,7 +68,7 @@ func (self *Patrol) runApps() {
 			// we need to run our state triggers
 			if is_running {
 				// we're running!
-				log.Printf("./patrol.runApps(): App ID: %s is running\n", app.id)
+				//log.Printf("./patrol.runApps(): App ID: %s is running\n", app.id)
 				if app.config.TriggerRunning != nil {
 					app.o.Unlock()
 					app.config.TriggerRunning(app)
@@ -96,7 +96,7 @@ func (self *Patrol) runApps() {
 				// we aren't running
 				if app.o.IsDisabled() {
 					// app is disabled
-					log.Printf("./patrol.runApps(): App ID: %s is not running AND is disabled! - Reason: \"%s\"\n", app.id, is_running_err)
+					//log.Printf("./patrol.runApps(): App ID: %s is not running AND is disabled! - Reason: \"%s\"\n", app.id, is_running_err)
 					if app.config.TriggerDisabled != nil {
 						app.o.Unlock()
 						app.config.TriggerDisabled(app)

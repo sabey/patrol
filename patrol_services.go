@@ -25,7 +25,7 @@ func (self *Patrol) runServices() {
 			// we need to run our state triggers
 			if is_running {
 				// we're running!
-				log.Printf("./patrol.runServices(): Service ID: %s is running\n", service.id)
+				//log.Printf("./patrol.runServices(): Service ID: %s is running\n", service.id)
 				if service.config.TriggerRunning != nil {
 					service.o.Unlock()
 					service.config.TriggerRunning(service)
@@ -61,7 +61,7 @@ func (self *Patrol) runServices() {
 				// we aren't running
 				if service.o.IsDisabled() {
 					// service is disabled
-					log.Printf("./patrol.runServices(): Service ID: %s is not running AND is disabled! - Reason: \"%s\"\n", service.id, is_running_err)
+					//log.Printf("./patrol.runServices(): Service ID: %s is not running AND is disabled! - Reason: \"%s\"\n", service.id, is_running_err)
 					if service.config.TriggerDisabled != nil {
 						service.o.Unlock()
 						service.config.TriggerDisabled(service)
