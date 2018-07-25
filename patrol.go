@@ -61,6 +61,8 @@ func CreatePatrol(
 			config: app,
 			o:      cas.CreateApp(app.Disabled),
 		}
+		// add preexisting keyvalues
+		p.apps[id].ReplaceKeyValue(app.KeyValue)
 	}
 	// add services
 	for id, service := range config.Services {
@@ -70,6 +72,8 @@ func CreatePatrol(
 			config: service,
 			o:      cas.CreateService(service.Disabled),
 		}
+		// add preexisting keyvalues
+		p.services[id].ReplaceKeyValue(service.KeyValue)
 	}
 	if config.TriggerStart != nil {
 		// start patrol

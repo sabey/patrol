@@ -66,6 +66,8 @@ type ConfigApp struct {
 	// The only way to enable an App once Patrol is started is to use the API or restart Patrol
 	// If we are Disabled and we discover an App that is running, we will signal it to stop.
 	Disabled bool `json:"disabled,omitempty"`
+	// KeyValue - prexisting values to populate objects with on init
+	KeyValue map[string]interface{} `json:"keyvalue,omitempty"`
 	// KeyValueClear if true will cause our App KeyValue to be cleared once a new instance of our App is started.
 	KeyValueClear bool `json:"keyvalue-clear,omitempty"`
 	// If Secret is set, we will require a secret to be passed when pinging and modifying the state of our App from our HTTP and UDP API.
@@ -199,6 +201,7 @@ func (self *ConfigApp) Clone() *ConfigApp {
 		PIDPath:              self.PIDPath,
 		PIDVerify:            self.PIDVerify,
 		Disabled:             self.Disabled,
+		KeyValue:             make(map[string]interface{}),
 		KeyValueClear:        self.KeyValueClear,
 		Secret:               self.Secret,
 		ExecuteTimeout:       self.ExecuteTimeout,
@@ -220,6 +223,9 @@ func (self *ConfigApp) Clone() *ConfigApp {
 		TriggerDisabled:      self.TriggerDisabled,
 		TriggerClosed:        self.TriggerClosed,
 		TriggerPinged:        self.TriggerPinged,
+	}
+	for k, v := range self.KeyValue {
+		o.KeyValue[k] = v
 	}
 	for _, a := range self.Args {
 		o.Args = append(o.Args, a)

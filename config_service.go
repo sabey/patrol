@@ -57,6 +57,8 @@ type ConfigService struct {
 	// The only way to enable an Service once Patrol is started is to use the API or restart Patrol
 	// If we are Disabled and we discover an Service that is running, we will signal it to stop.
 	Disabled bool `json:"disabled,omitempty"`
+	// KeyValue - prexisting values to populate objects with on init
+	KeyValue map[string]interface{} `json:"keyvalue,omitempty"`
 	// KeyValueClear if true will cause our Service KeyValue to be cleared once a new instance of our Service is started.
 	KeyValueClear bool `json:"keyvalue-clear,omitempty"`
 	// If Secret is set, we will require a secret to be passed when pinging and modifying the state of our Service from our HTTP and UDP API.
@@ -121,6 +123,7 @@ func (self *ConfigService) Clone() *ConfigService {
 		IgnoreExitCodesStop:    make([]uint8, 0, len(self.IgnoreExitCodesStop)),
 		IgnoreExitCodesRestart: make([]uint8, 0, len(self.IgnoreExitCodesRestart)),
 		Disabled:               self.Disabled,
+		KeyValue:               make(map[string]interface{}),
 		KeyValueClear:          self.KeyValueClear,
 		Secret:                 self.Secret,
 		TriggerStart:           self.TriggerStart,
@@ -129,6 +132,9 @@ func (self *ConfigService) Clone() *ConfigService {
 		TriggerRunning:         self.TriggerRunning,
 		TriggerDisabled:        self.TriggerDisabled,
 		TriggerClosed:          self.TriggerClosed,
+	}
+	for k, v := range self.KeyValue {
+		config.KeyValue[k] = v
 	}
 	for _, i := range self.IgnoreExitCodesStart {
 		config.IgnoreExitCodesStart = append(config.IgnoreExitCodesStart, i)

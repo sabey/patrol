@@ -7,7 +7,12 @@
       "working-directory": "~/go/src/sabey.co/patrol/unittest/testapp/",
       "log-directory": "logs",
       "pid-path": "app.pid",
-      "std-merge": true
+      "std-merge": true,
+      "keyvalue": {
+        "a": "B",
+        "c": 1,
+        "d": true
+      }
     },
     "fake": {
       "keepalive": 3,
@@ -36,7 +41,11 @@
       "service": "ssh",
       "ignore-exit-codes": [
         127
-      ]
+      ],
+      "keyvalue": {
+        "user": "Username",
+        "pass": "this is a secret"
+      }
     },
     "fake": {
       "management": 1,

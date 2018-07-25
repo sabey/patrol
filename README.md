@@ -295,6 +295,9 @@ PIDVerify bool `json:"pid-verify,omitempty"`
 // If we are Disabled and we discover an App that is running, we will signal it to stop.
 Disabled bool `json:"disabled,omitempty"`
 
+// KeyValue - prexisting values to populate objects with on init
+KeyValue map[string]interface{} `json:"keyvalue,omitempty"`
+
 // KeyValueClear if true will cause our App KeyValue to be cleared once a new instance of our App is started.
 KeyValueClear bool `json:"keyvalue-clear,omitempty"`
 
@@ -475,6 +478,9 @@ IgnoreExitCodesRestart []uint8 `json:"ignore-exit-codes-restart,omitempty"`
 // The only way to enable an Service once Patrol is started is to use the API or restart Patrol
 // If we are Disabled and we discover an Service that is running, we will signal it to stop.
 Disabled bool `json:"disabled,omitempty"`
+
+// KeyValue - prexisting values to populate objects with on init
+KeyValue map[string]interface{} `json:"keyvalue,omitempty"`
 
 // KeyValueClear if true will cause our Service KeyValue to be cleared once a new instance of our Service is started.
 KeyValueClear bool `json:"keyvalue-clear,omitempty"`
