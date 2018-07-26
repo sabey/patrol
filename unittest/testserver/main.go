@@ -117,25 +117,26 @@ func main() {
 		a.WorkingDirectory = filepath.Clean(wd + "/../" + a.WorkingDirectory)
 		// add env
 		a.Env = append(a.Env, fmt.Sprintf("%s=%s", patrol.PATROL_ENV_UNITTEST_KEY, patrol.PATROL_ENV_UNITTEST_VALUE))
-		// triggers
+		// extra - NOOP
 		a.ExtraArgs = func(
-			app *patrol.App,
+			id string,
 		) []string {
 			// do nothing
 			return nil
 		}
 		a.ExtraEnv = func(
-			app *patrol.App,
+			id string,
 		) []string {
 			// do nothing
 			return nil
 		}
 		a.ExtraFiles = func(
-			app *patrol.App,
+			id string,
 		) []*os.File {
 			// do nothing
 			return nil
 		}
+		// triggers
 		a.TriggerStart = func(
 			app *patrol.App,
 		) {

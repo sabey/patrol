@@ -100,11 +100,11 @@ type ConfigApp struct {
 	//
 	// ExtraArgs is an optional set of values that will be appended to Args.
 	ExtraArgs func(
-		app *App,
+		id string,
 	) []string `json:"-"`
 	// ExtraEnv is an optional set of values that will be appended to Env.
 	ExtraEnv func(
-		app *App,
+		id string,
 	) []string `json:"-"`
 	// Stdin specifies the process's standard input.
 	//
@@ -145,7 +145,7 @@ type ConfigApp struct {
 	// new process. It does not include standard input, standard output, or
 	// standard error. If non-nil, entry i becomes file descriptor 3+i.
 	ExtraFiles func(
-		app *App,
+		id string,
 	) []*os.File `json:"-"`
 	// TriggerStart is called from tick in runApps() before we attempt to execute an App.
 	TriggerStart func(
