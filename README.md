@@ -14,6 +14,10 @@ go build -a -v
 ```
 
 
+## [Installing Patrol - systemd](https://github.com/sabey/patrol/tree/master/patrol)
+[patrol/README.md](https://github.com/sabey/patrol/blob/master/patrol/README.md)
+
+
 #### Patrol config.json
 ```json
 {

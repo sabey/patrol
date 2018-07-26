@@ -1,0 +1,15 @@
+[Unit]
+Description=Patrol
+After=network.target
+
+[Service]
+EnvironmentFile=-/etc/default/ssh
+WorkingDirectory=/home/jackson/patrol
+ExecStart=/home/jackson/patrol/patrol
+Restart=on-failure
+RestartSec=5
+Type=simple
+
+[Install]
+WantedBy=multi-user.target
+Alias=patrol.service
