@@ -95,6 +95,12 @@ type ConfigService struct {
 		service *Service,
 		history *History,
 	) `json:"-"`
+	// TriggerShutdown is called when we call Patrol.Shutdown()
+	// This will only be called ONCE
+	// This is called regardless if our Service is running or disabled!
+	TriggerShutdown func(
+		service *Service,
+	) `json:"-"`
 	// Extra Unstructured Data
 	X json.RawMessage `json:"x,omitempty"`
 }
@@ -135,6 +141,7 @@ func (self *ConfigService) Clone() *ConfigService {
 		TriggerRunning:         self.TriggerRunning,
 		TriggerDisabled:        self.TriggerDisabled,
 		TriggerClosed:          self.TriggerClosed,
+		TriggerShutdown:        self.TriggerShutdown,
 		X:                      dereference(self.X),
 	}
 	for k, v := range self.KeyValue {

@@ -177,6 +177,11 @@ func main() {
 		) {
 			// do nothing
 		}
+		a.TriggerShutdown = func(
+			app *patrol.App,
+		) {
+			// do nothing
+		}
 	}
 	// override service triggers
 	for _, s := range config.Services {
@@ -208,6 +213,11 @@ func main() {
 		s.TriggerClosed = func(
 			service *patrol.Service,
 			history *patrol.History,
+		) {
+			// do nothing
+		}
+		s.TriggerShutdown = func(
+			service *patrol.Service,
 		) {
 			// do nothing
 		}

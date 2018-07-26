@@ -438,6 +438,13 @@ TriggerPinged func(
 	app *App,
 ) `json:"-"`
 
+// TriggerShutdown is called when we call Patrol.Shutdown()
+// This will only be called ONCE
+// This is called regardless if our App is running or disabled!
+TriggerShutdown func(
+  app *App,
+) `json:"-"`
+
 // Extra Unstructured Data
 X json.RawMessage `json:"x,omitempty"`
 ```
@@ -532,9 +539,16 @@ TriggerDisabled func(
 
 // TriggerPinged is from Service.apiRequest() when we discover an Service is running from a Ping request.
 TriggerClosed func(
-	service *Service,
-	history *History,
-	) `json:"-"`
+  service *Service,
+  history *History,
+) `json:"-"`
+
+// TriggerShutdown is called when we call Patrol.Shutdown()
+// This will only be called ONCE
+// This is called regardless if our Service is running or disabled!
+TriggerShutdown func(
+  service *Service,
+) `json:"-"`
 
 // Extra Unstructured Data
 X json.RawMessage `json:"x,omitempty"`

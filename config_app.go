@@ -181,6 +181,12 @@ type ConfigApp struct {
 	TriggerPinged func(
 		app *App,
 	) `json:"-"`
+	// TriggerShutdown is called when we call Patrol.Shutdown()
+	// This will only be called ONCE
+	// This is called regardless if our App is running or disabled!
+	TriggerShutdown func(
+		app *App,
+	) `json:"-"`
 	// Extra Unstructured Data
 	X json.RawMessage `json:"x,omitempty"`
 }
@@ -226,6 +232,7 @@ func (self *ConfigApp) Clone() *ConfigApp {
 		TriggerDisabled:      self.TriggerDisabled,
 		TriggerClosed:        self.TriggerClosed,
 		TriggerPinged:        self.TriggerPinged,
+		TriggerShutdown:      self.TriggerShutdown,
 		X:                    dereference(self.X),
 	}
 	for k, v := range self.KeyValue {

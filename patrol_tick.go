@@ -74,8 +74,9 @@ func (self *Patrol) tick() {
 			// since we're not in a lock we're going to wait for this function
 			self.config.TriggerStopped(self)
 		}
-		// we need to signal to all of our apps that we're stopping!
-		self.signalStopApps()
+		// we need to signal to all of our apps/services that we're shutting down!
+		self.shutdownApps()
+		self.shutdownServices()
 		// close our ticker
 		self.mu.Lock()
 		self.ticker_stop = false

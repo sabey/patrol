@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-func (self *Patrol) signalStopApps() {
+func (self *Patrol) shutdownApps() {
 	if self.config.unittesting {
 		// WE'RE UNITTESTING!!!
 		// we DO NOT want to send a signal on stop!!
@@ -14,17 +14,22 @@ func (self *Patrol) signalStopApps() {
 		return
 	}
 	var wg sync.WaitGroup
-	log.Printf("./patrol.signalStopApps(): signalling to all apps that we are stopping!\n")
+	log.Printf("./patrol.shutdownApps(): signalling to all apps that we are shutting down!\n")
 	for _, app := range self.apps {
 		wg.Add(1)
 		go func(app *App) {
 			defer wg.Done()
 			app.o.Lock()
 			if app.isAppRunning() == nil {
-				log.Printf("./patrol.signalStopApps(): App ID: %s is running - Signalling!\n", app.id)
+				log.Printf("./patrol.shutdownApps(): App ID: %s is running - Signalling!\n", app.id)
 				app.signalStop()
 			}
 			app.o.Unlock()
+			// call trigger outside of lock
+			if app.config.TriggerShutdown != nil {
+				// call trigger
+				app.config.TriggerShutdown(app)
+			}
 		}(app)
 	}
 	wg.Wait()

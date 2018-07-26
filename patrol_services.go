@@ -5,6 +5,21 @@ import (
 	"sync"
 )
 
+func (self *Patrol) shutdownServices() {
+	var wg sync.WaitGroup
+	log.Printf("./patrol.shutdownServices(): signalling to all services that we are shutting down!\n")
+	for _, service := range self.services {
+		if service.config.TriggerShutdown != nil {
+			wg.Add(1)
+			go func(service *Service) {
+				defer wg.Done()
+				// call trigger outside of lock
+				service.config.TriggerShutdown(service)
+			}(service)
+		}
+	}
+	wg.Wait()
+}
 func (self *Patrol) runServices() {
 	var wg sync.WaitGroup
 	// we're going to ignore any shutdown checks in this function
