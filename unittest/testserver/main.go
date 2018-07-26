@@ -139,48 +139,57 @@ func main() {
 		a.TriggerStart = func(
 			app *patrol.App,
 		) {
-			// do nothing
+			// make sure we're not deadlocked
+			app.Snapshot()
 		}
 		a.TriggerStarted = func(
 			app *patrol.App,
 		) {
-			// do nothing
+			// make sure we're not deadlocked
+			app.Snapshot()
 		}
 		a.TriggerStartedPinged = func(
 			app *patrol.App,
 		) {
-			// do nothing
+			// make sure we're not deadlocked
+			app.Snapshot()
 		}
 		a.TriggerStartFailed = func(
 			app *patrol.App,
 		) {
-			// do nothing
+			// make sure we're not deadlocked
+			app.Snapshot()
 		}
 		a.TriggerRunning = func(
 			app *patrol.App,
 		) {
-			// do nothing
+			// make sure we're not deadlocked
+			app.Snapshot()
 		}
 		a.TriggerDisabled = func(
 			app *patrol.App,
 		) {
-			// do nothing
+			// make sure we're not deadlocked
+			app.Snapshot()
 		}
 		a.TriggerClosed = func(
 			app *patrol.App,
 			history *patrol.History,
 		) {
-			// do nothing
+			// make sure we're not deadlocked
+			app.Snapshot()
 		}
 		a.TriggerPinged = func(
 			app *patrol.App,
 		) {
-			// do nothing
+			// make sure we're not deadlocked
+			app.Snapshot()
 		}
 		a.TriggerShutdown = func(
 			app *patrol.App,
 		) {
-			// do nothing
+			// make sure we're not deadlocked
+			app.Snapshot()
 		}
 	}
 	// override service triggers
@@ -188,38 +197,45 @@ func main() {
 		s.TriggerStart = func(
 			service *patrol.Service,
 		) {
-			// do nothing
+			// make sure we're not deadlocked
+			service.Snapshot()
 		}
 		s.TriggerStarted = func(
 			service *patrol.Service,
 		) {
-			// do nothing
+			// make sure we're not deadlocked
+			service.Snapshot()
 		}
 		s.TriggerStartFailed = func(
 			service *patrol.Service,
 		) {
-			// do nothing
+			// make sure we're not deadlocked
+			service.Snapshot()
 		}
 		s.TriggerRunning = func(
 			service *patrol.Service,
 		) {
-			// do nothing
+			// make sure we're not deadlocked
+			service.Snapshot()
 		}
 		s.TriggerDisabled = func(
 			service *patrol.Service,
 		) {
-			// do nothing
+			// make sure we're not deadlocked
+			service.Snapshot()
 		}
 		s.TriggerClosed = func(
 			service *patrol.Service,
 			history *patrol.History,
 		) {
-			// do nothing
+			// make sure we're not deadlocked
+			service.Snapshot()
 		}
 		s.TriggerShutdown = func(
 			service *patrol.Service,
 		) {
-			// do nothing
+			// make sure we're not deadlocked
+			service.Snapshot()
 		}
 	}
 	p, err = patrol.CreatePatrol(config)
