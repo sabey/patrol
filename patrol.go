@@ -37,9 +37,10 @@ func CreatePatrol(
 		return nil, err
 	}
 	p := &Patrol{
-		config:   config,
-		apps:     make(map[string]*App),
-		services: make(map[string]*Service),
+		instance_id: uuidMust(uuidV4()),
+		config:      config,
+		apps:        make(map[string]*App),
+		services:    make(map[string]*Service),
 	}
 	// we're going to check if we're unittesting
 	// this isn't the ideal way to do this, but it will work
@@ -90,9 +91,11 @@ func CreatePatrol(
 
 type Patrol struct {
 	// safe
-	config   *Config
-	apps     map[string]*App
-	services map[string]*Service
+	// instance ID never changes once a Patrol object is created!
+	instance_id string
+	config      *Config
+	apps        map[string]*App
+	services    map[string]*Service
 	// unsafe
 	shutdown bool
 	// ticker
@@ -106,6 +109,9 @@ func (self *Patrol) IsValid() bool {
 		return false
 	}
 	return self.config.IsValid()
+}
+func (self *Patrol) GetInstanceID() string {
+	return self.instance_id
 }
 func (self *Patrol) IsRunning() bool {
 	self.mu.RLock()

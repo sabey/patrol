@@ -52,6 +52,7 @@ func (self *App) apiRequest(
 				// close previous App
 				self.close()
 				// start a new App
+				self.instance_id = uuidMust(uuidV4())
 				self.o.SetStarted(now)
 				// set PID
 				self.o.SetPID(request.PID)
@@ -80,6 +81,7 @@ func (self *App) apiRequest(
 			self.o.SetPID(request.PID)
 			if self.o.GetStarted().IsZero() {
 				// this is a new App
+				self.instance_id = uuidMust(uuidV4())
 				self.o.SetStarted(now)
 				// call trigger
 				if self.config.TriggerStartedPinged != nil {
@@ -163,13 +165,14 @@ func (self *App) apiResponse(
 	endpoint uint8,
 ) *API_Response {
 	result := &API_Response{
-		Name:     self.config.Name,
-		PID:      self.o.GetPID(),
-		Disabled: self.o.IsDisabled(),
-		Restart:  self.o.IsRestart(),
-		RunOnce:  self.o.IsRunOnce(),
-		Secret:   self.config.Secret != "",
-		CAS:      self.o.GetCAS(),
+		InstanceID: self.instance_id,
+		Name:       self.config.Name,
+		PID:        self.o.GetPID(),
+		Disabled:   self.o.IsDisabled(),
+		Restart:    self.o.IsRestart(),
+		RunOnce:    self.o.IsRunOnce(),
+		Secret:     self.config.Secret != "",
+		CAS:        self.o.GetCAS(),
 	}
 	if endpoint != api_endpoint_status {
 		// we don't need these values for individual status objects

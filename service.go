@@ -31,6 +31,8 @@ type Service struct {
 	id     string // we want a reference to our parent ID
 	config *ConfigService
 	// unsafe
+	// instance ID only exists IF we're running!
+	instance_id string
 	// history will wrap our cas Objects Lock/RLock mutex
 	// history is NOT included in our cas Object because we didn't want to restructure Patrol
 	history []*History
@@ -45,6 +47,11 @@ func (self *Service) IsValid() bool {
 }
 func (self *Service) GetID() string {
 	return self.id
+}
+func (self *Service) GetInstanceID() string {
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.instance_id
 }
 func (self *Service) GetPatrol() *Patrol {
 	return self.patrol
@@ -164,6 +171,7 @@ func (self *Service) close() {
 			self.history = self.history[1:]
 		}
 		h := &History{
+			InstanceID: self.instance_id,
 			Stopped: &Timestamp{
 				Time:            time.Now(),
 				TimestampFormat: self.patrol.config.Timestamp,
@@ -189,6 +197,7 @@ func (self *Service) close() {
 		}
 		self.history = append(self.history, h)
 		// reset values
+		self.instance_id = ""
 		self.o.SetStarted(time.Time{})
 		self.o.SetLastSeen(time.Time{})
 		if self.o.IsRunOnceConsumed() {
@@ -254,6 +263,7 @@ func (self *Service) startService() error {
 	}
 	// exit code 0
 	// started!
+	self.instance_id = uuidMust(uuidV4())
 	self.o.SetStarted(now)
 	return nil
 }
@@ -298,6 +308,7 @@ func (self *Service) isServiceRunning() error {
 	now := time.Now()
 	if self.o.GetStarted().IsZero() {
 		// Service was not running
+		self.instance_id = uuidMust(uuidV4())
 		self.o.SetStarted(now)
 		// we need to call our started trigger
 		if self.config.TriggerStarted != nil {

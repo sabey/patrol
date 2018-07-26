@@ -33,6 +33,7 @@ func shutdown() {
 
 func main() {
 	start := time.Now()
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Llongfile)
 	if !flag.Parsed() {
 		flag.Parse()
 	}
@@ -162,6 +163,10 @@ func main() {
 			case syscall.SIGUSR2:
 				// unreserved signal - handle however we want
 				log.Println("./patrol/patrol.main(): SIGUSR2 - Ignored")
+			case syscall.SIGCHLD:
+				// we want to ignore syscall.SIGCHLD
+				// this is only used if we're using os.Exec and our child process exits
+				// we're going to be SPAMMED with this when we're using Patrol
 			default:
 				// unknown
 				// do nothing

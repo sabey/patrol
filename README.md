@@ -38,7 +38,8 @@ go build -a -v
         "a=b",
         "c=d"
       ],
-      "env-parent": false
+      "env-parent": false,
+      "std-merge": true
     }
   },
   "services": {
@@ -117,6 +118,7 @@ POST /api/
 ```json
 {
   "id": "http",
+  "instance-id": "fd1b743c-752d-4034-a502-2bdddb7e262f",
   "group": "app",
   "name": "testapp",
   "pid": 10732,
@@ -129,6 +131,7 @@ POST /api/
 #### Example API_Status
 ```json
 {
+  "instance-id": "5127ce9b-61e3-4818-a0fd-f1bebafb2fac",
   "apps": {
     "fake-secret": {
       "name": "Fake Secret App",
@@ -137,6 +140,7 @@ POST /api/
       "cas": 40875
     },
     "testapp": {
+      "instance-id": "08b63d19-7569-4b2d-9ad1-87c780ea2f83",
       "name": "Test App",
       "pid": 26200,
       "started": "Wed, 18 Jul 2018 16:20:14 -0700",
@@ -146,6 +150,7 @@ POST /api/
   },
   "service": {
     "ssh": {
+      "instance-id": "29a6b077-6af3-4865-b443-4676b242588d",
       "name": "SSH",
       "started": "Wed, 18 Jul 2018 16:20:14 -0700",
       "lastseen": "Wed, 18 Jul 2018 16:20:44 -0700",
@@ -163,7 +168,7 @@ POST /api/
 // ID MUST be usable as a valid hostname label, ie: len <= 63 AND no starting/ending -
 // Keys are NOT our binary name
 // Keys are only used as unique identifiers for our API and Keep Alive
-Apps map[string]*ConfigApp `json:"apps,omitempty"`
+Apps     map[string]*ConfigApp     `json:"apps,omitempty"`
 Services map[string]*ConfigService `json:"services,omitempty"`
 
 // TickEvery is an integer value in seconds of how often we will check the state of our Apps and Services
@@ -538,8 +543,10 @@ X json.RawMessage `json:"x,omitempty"`
 
 ## type API_Status struct {
 ```golang
-Apps     map[string]*API_Response `json:"apps,omitempty"`
-Services map[string]*API_Response `json:"service,omitempty"`
+// Instance ID - UUIDv4
+InstanceID string                   `json:"instance-id,omitempty"`
+Apps       map[string]*API_Response `json:"apps,omitempty"`
+Services   map[string]*API_Response `json:"service,omitempty"`
 
 // Timestamp Patrol started at
 Started string `json:"started,omitempty"`
@@ -623,6 +630,9 @@ CAS uint64 `json:"cas,omitempty"`
 // Unique Identifier
 ID string `json:"id,omitempty"`
 
+// Instance ID - UUIDv4 - Only exists IF we're running!
+InstanceID string `json:"instance-id,omitempty"`
+
 // Group: `app` or `service`
 Group string `json:"group,omitempty"`
 
@@ -679,3 +689,18 @@ CAS uint64 `json:"cas,omitempty"`
 CASInvalid bool `json:"cas-invalid,omitempty"`
 ```
 
+
+## type History struct {
+```golang
+InstanceID string                 `json:"instance-id,omitempty"`
+PID        uint32                 `json:"pid,omitempty"`
+Started    string                 `json:"started,omitempty"`
+LastSeen   string                 `json:"lastseen,omitempty"`
+Stopped    string                 `json:"stopped,omitempty"`
+Disabled   bool                   `json:"disabled,omitempty"`
+Restart    bool                   `json:"restart,omitempty"`
+RunOnce    bool                   `json:"run-once,omitempty"`
+Shutdown   bool                   `json:"shutdown,omitempty"`
+ExitCode   uint8                  `json:"exit-code,omitempty"`
+KeyValue   map[string]interface{} `json:"keyvalue,omitempty"`
+```

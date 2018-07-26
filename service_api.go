@@ -76,12 +76,13 @@ func (self *Service) apiResponse(
 	endpoint uint8,
 ) *API_Response {
 	result := &API_Response{
-		Name:     self.config.Name,
-		Disabled: self.o.IsDisabled(),
-		Restart:  self.o.IsRestart(),
-		RunOnce:  self.o.IsRunOnce(),
-		Secret:   self.config.Secret != "",
-		CAS:      self.o.GetCAS(),
+		InstanceID: self.instance_id,
+		Name:       self.config.Name,
+		Disabled:   self.o.IsDisabled(),
+		Restart:    self.o.IsRestart(),
+		RunOnce:    self.o.IsRunOnce(),
+		Secret:     self.config.Secret != "",
+		CAS:        self.o.GetCAS(),
 	}
 	if endpoint != api_endpoint_status {
 		// we don't need these values for individual status objects

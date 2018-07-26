@@ -1,8 +1,10 @@
 package patrol
 
 type API_Status struct {
-	Apps     map[string]*API_Response `json:"apps,omitempty"`
-	Services map[string]*API_Response `json:"service,omitempty"`
+	// Instance ID - UUIDv4
+	InstanceID string                   `json:"instance-id,omitempty"`
+	Apps       map[string]*API_Response `json:"apps,omitempty"`
+	Services   map[string]*API_Response `json:"service,omitempty"`
 	// Timestamp Patrol started at
 	Started *Timestamp `json:"started,omitempty"`
 	// Is Patrol in a Shutdown state?
@@ -15,9 +17,10 @@ func (self *Patrol) GetStatus() *API_Status {
 	shutdown := self.shutdown
 	self.mu.RUnlock()
 	result := &API_Status{
-		Apps:     make(map[string]*API_Response),
-		Services: make(map[string]*API_Response),
-		Shutdown: shutdown,
+		InstanceID: self.instance_id,
+		Apps:       make(map[string]*API_Response),
+		Services:   make(map[string]*API_Response),
+		Shutdown:   shutdown,
 	}
 	if !started.IsZero() {
 		result.Started = &Timestamp{

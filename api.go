@@ -85,6 +85,8 @@ func (self *API_Request) IsValid() bool {
 type API_Response struct {
 	// Unique Identifier
 	ID string `json:"id,omitempty"`
+	// Instance ID - UUIDv4 - Only exists IF we're running!
+	InstanceID string `json:"instance-id,omitempty"`
 	// Group: `app` or `service`
 	Group string `json:"group,omitempty"`
 	// Display Name
@@ -135,6 +137,7 @@ type API_Response struct {
 // this really isn't that aesthetic but it works well!
 type api_response struct {
 	ID         string                 `json:"id,omitempty"`
+	InstanceID string                 `json:"instance-id,omitempty"`
 	Group      string                 `json:"group,omitempty"`
 	Name       string                 `json:"name,omitempty"`
 	PID        uint32                 `json:"pid,omitempty"`
@@ -184,6 +187,7 @@ func (self *API_Response) UnmarshalJSON(
 	}
 	// fix response
 	self.ID = result.ID
+	self.InstanceID = result.InstanceID
 	self.Group = result.Group
 	self.Name = result.Name
 	self.PID = result.PID

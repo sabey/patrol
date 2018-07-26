@@ -74,6 +74,8 @@ type App struct {
 	id     string // we want a reference to our parent ID
 	config *ConfigApp
 	// unsafe
+	// instance ID only exists IF we're running!
+	instance_id string
 	// history will wrap our cas Objects Lock/RLock mutex
 	// history is NOT included in our cas Object because we didn't want to restructure Patrol
 	history []*History
@@ -88,6 +90,11 @@ func (self *App) IsValid() bool {
 }
 func (self *App) GetID() string {
 	return self.id
+}
+func (self *App) GetInstanceID() string {
+	self.o.RLock()
+	defer self.o.RUnlock()
+	return self.instance_id
 }
 func (self *App) GetPatrol() *Patrol {
 	return self.patrol
@@ -220,6 +227,7 @@ func (self *App) close() {
 			self.history = self.history[1:]
 		}
 		h := &History{
+			InstanceID: self.instance_id,
 			// we're always going to log PID even if there's a chance it doesn't exist
 			// for example if our APP controls the PID, when we ping to check if its alive, it would override PID with something incorrect
 			// pid is garaunteed to always exist for APP_KEEPALIVE_PID_PATROL
@@ -263,6 +271,7 @@ func (self *App) close() {
 		}
 		self.history = append(self.history, h)
 		// reset values
+		self.instance_id = ""
 		self.o.SetStarted(time.Time{})
 		self.o.SetLastSeen(time.Time{})
 		// do not unset started_log!!!
@@ -493,6 +502,7 @@ func (self *App) startApp() error {
 		return err
 	}
 	// started!
+	self.instance_id = uuidMust(uuidV4())
 	self.o.SetStarted(now)
 	self.o.SetStartedLog(now)
 	if self.config.KeepAlive == APP_KEEPALIVE_PID_PATROL {
@@ -611,6 +621,7 @@ func (self *App) isAppRunning() error {
 			// set PID
 			self.o.SetPID(pid)
 			// this is a new App
+			self.instance_id = uuidMust(uuidV4())
 			self.o.SetStarted(now)
 			// we need to call our started trigger
 			if self.config.TriggerStarted != nil {
@@ -629,6 +640,7 @@ func (self *App) isAppRunning() error {
 		self.o.SetPID(pid)
 		if self.o.GetStarted().IsZero() {
 			// this is a new App
+			self.instance_id = uuidMust(uuidV4())
 			self.o.SetStarted(now)
 			// we need to call our started trigger
 			if self.config.TriggerStarted != nil {
