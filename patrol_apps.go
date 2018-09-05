@@ -83,7 +83,7 @@ func (self *Patrol) runApps() {
 				if app.o.IsRestart() {
 					// signal our app to stop
 					log.Printf("./patrol.runApps(): App ID: %s is running AND we're restarting! - Signalling!\n", app.id)
-					app.signalStop()
+					app.signalRestart()
 					// we will only attempt to restart ONCE, we consume restart even if we fail to restart!
 					app.o.SetRestart(false)
 					// it's going to ultimately be up to our App to exit

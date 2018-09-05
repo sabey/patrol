@@ -656,20 +656,31 @@ func (self *App) isAppRunning() error {
 	return nil
 }
 func (self *App) signalStop() {
-	// we're going to signal our App if our App is disabled OR if we're shutting down Patrol
+	// we're signalling to our App that we're either disabled or Patrol is shutting down
+	//
 	// we can only do this if we have a PID, we don't care what keepalive method we use so long as a PID exists
 	// we're going to discard any errors
 	if self.o.GetPID() > 0 {
 		if process, err := os.FindProcess(int(self.o.GetPID())); err == nil {
 			// we're going to keep our signals different than syscall.SIGTERM
 			// we're going to leave syscall.SIGTERM to be reserved for Patrol ACTUALLY closing!
-			if self.patrol.shutdown {
-				// notify that Patrol is gracefully shutting down
-				process.Signal(syscall.SIGUSR1)
-			} else {
-				// notify that the App has been disabled
-				process.Signal(syscall.SIGUSR2)
-			}
+			process.Signal(syscall.SIGUSR1)
+		}
+	}
+}
+func (self *App) signalRestart() {
+	// we're going to signal our App that we wish for our App to restart
+	// our App should use this signal to either Fork or Shutdown!
+	//
+	// we can only do this if we have a PID, we don't care what keepalive method we use so long as a PID exists
+	// we're going to discard any errors
+	if self.o.GetPID() > 0 {
+		if process, err := os.FindProcess(int(self.o.GetPID())); err == nil {
+			// we're going to keep our signals different than syscall.SIGTERM
+			// we're going to leave syscall.SIGTERM to be reserved for Patrol ACTUALLY closing!
+			//
+			// we're also going to keep this different than syscall.SIGUSR1 as that is reserved for closing Apps
+			process.Signal(syscall.SIGUSR2)
 		}
 	}
 }

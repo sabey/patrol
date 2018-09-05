@@ -296,8 +296,8 @@ func TestAppExecPatrolDisable(t *testing.T) {
 	unittest.Equals(t, app.history[0].Stopped.IsZero(), false)
 	unittest.Equals(t, app.history[0].Disabled, true)
 	unittest.Equals(t, app.history[0].Shutdown, false)
-	// check that we were notified - SIGUSR2
-	unittest.Equals(t, app.history[0].ExitCode, 12)
+	// check that we were notified - SIGUSR1
+	unittest.Equals(t, app.history[0].ExitCode, 10)
 	app.o.Unlock()
 }
 func TestAppExecPatrolLogDirectory(t *testing.T) {
@@ -382,8 +382,8 @@ func TestAppExecPatrolLogDirectory(t *testing.T) {
 	unittest.Equals(t, app.history[0].Stopped.IsZero(), false)
 	unittest.Equals(t, app.history[0].Disabled, true)
 	unittest.Equals(t, app.history[0].Shutdown, false)
-	// check that we were notified - SIGUSR2
-	unittest.Equals(t, app.history[0].ExitCode, 12)
+	// check that we were notified - SIGUSR1
+	unittest.Equals(t, app.history[0].ExitCode, 10)
 	app.o.Unlock()
 
 	// verify our logs exist
