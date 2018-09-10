@@ -84,12 +84,12 @@ func (self *App) Lock() {
 	self.mu_internal.Unlock()
 }
 func (self *App) Unlock() {
-	self.mu_external.Unlock()
 	self.mu_internal.Lock()
 	self.locked_read = false
 	self.locked_write = false
 	self.incremented = false
 	self.mu_internal.Unlock()
+	self.mu_external.Unlock()
 }
 func (self *App) RLock() {
 	self.mu_external.RLock()
@@ -98,10 +98,10 @@ func (self *App) RLock() {
 	self.mu_internal.Unlock()
 }
 func (self *App) RUnlock() {
-	self.mu_external.RUnlock()
 	self.mu_internal.Lock()
 	self.locked_read = false
 	self.mu_internal.Unlock()
+	self.mu_external.RUnlock()
 }
 func (self *App) increment() {
 	if !self.incremented {
